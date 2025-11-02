@@ -49,7 +49,7 @@ class LoginScreen extends StatelessWidget {
                                     fontWeight: FontWeight.bold,
                                     color: textColor)),
                             SizedBox(height: 5),
-                            Text('Please, enter your details to log in.',
+                            Text('Please enter your details to log in.',
                                 style: TextStyle(
                                     fontSize: 14, color: lightTextColor)),
                             SizedBox(height: 40),
@@ -102,7 +102,7 @@ class LoginScreen extends StatelessWidget {
                                         const RegistrationScreen()));
                           },
                           child: const Text(
-                            "Don't have account, create one!",
+                            "Don't have an account? Create one!",
                             style: TextStyle(
                               color: textColor,
                               fontWeight: FontWeight.bold,

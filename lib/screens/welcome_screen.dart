@@ -51,7 +51,7 @@ class WelcomeScreen extends StatelessWidget {
                   ),
                   SizedBox(height: 10),
                   Text(
-                    'Bill splitting, manage duties and groceries all in one place.',
+                    'Split bills, manage duties and groceries all in one place.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 16,

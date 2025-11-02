@@ -48,7 +48,7 @@ class RegistrationScreen extends StatelessWidget {
                                     fontWeight: FontWeight.bold,
                                     color: textColor)),
                             SizedBox(height: 5),
-                            Text('Please, enter your details to register.',
+                            Text('Please enter your details to register.',
                                 style: TextStyle(
                                     fontSize: 14, color: lightTextColor)),
                             SizedBox(height: 40),

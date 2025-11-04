@@ -43,3 +43,15 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+*.kts
+*.xml
+*.kt
+*.png
+*.properties
+.metadata
+/windows/runner
+windows/flutter/generated_plugin_registrant.cc
+test/widget_test.dart
+windows/flutter/generated_plugin_registrant.h
+windows/flutter/generated_plugins.cmake
+test/widget_test.dart

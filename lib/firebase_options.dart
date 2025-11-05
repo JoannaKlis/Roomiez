@@ -60,5 +60,4 @@ class DefaultFirebaseOptions {
     authDomain: 'roomies-attempt-four.firebaseapp.com',
     storageBucket: 'roomies-attempt-four.firebasestorage.app',
   );
-
 }

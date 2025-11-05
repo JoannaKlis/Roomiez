@@ -37,7 +37,7 @@ class LoginScreen extends StatelessWidget {
                           children: [
                             Icon(Icons.house, size: 80.0, color: textColor),
                             SizedBox(height: 10),
-                            Text('ROOMIEZ',
+                            Text('ROOMIES',
                                 style: TextStyle(
                                     fontSize: 28,
                                     fontWeight: FontWeight.bold,

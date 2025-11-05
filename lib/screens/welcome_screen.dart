@@ -26,7 +26,7 @@ class WelcomeScreen extends StatelessWidget {
                 ),
                 SizedBox(height: 10),
                 Text(
-                  'ROOMIEZ',
+                  'ROOMIES',
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.bold,

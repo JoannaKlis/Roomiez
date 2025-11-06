@@ -5,12 +5,14 @@ class CustomTextField extends StatelessWidget {
   final String label;
   final String hint;
   final bool isPassword;
+  final TextEditingController? controller;
 
   const CustomTextField({
     Key? key,
     required this.label,
     required this.hint,
     this.isPassword = false,
+    this.controller,
   }) : super(key: key);
 
   @override
@@ -30,6 +32,7 @@ class CustomTextField extends StatelessWidget {
         const SizedBox(height: 5),
         // pole wprowadzania danych
         TextField(
+          controller: controller,
           obscureText: isPassword,
           decoration: InputDecoration(
             hintText: hint,

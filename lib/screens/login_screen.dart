@@ -4,6 +4,7 @@ import '../widgets/custom_button.dart';
 import '../widgets/custom_text_field.dart';
 import 'registration_screen.dart';
 import 'package:roomies/services/auth_service.dart';
+import 'dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -33,15 +34,21 @@ class _LoginScreenState extends State<LoginScreen> {
     );
 
     if (errorMessage == null) {
-      // TODO: po udanym logowaniu przejdź do dashbordu (kolejnego screena)
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Login successful!'),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
+            duration: Duration(milliseconds: 500),
           ),
         );
+        Future.delayed(const Duration(milliseconds: 500), () {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const DashboardScreen()),
+        );
+      });
       }
     } else {
       // błąd logowania

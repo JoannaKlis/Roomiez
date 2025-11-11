@@ -1,3 +1,5 @@
+// lib/widgets/custom_text_field.dart
+
 import 'package:flutter/material.dart';
 import '../constants.dart';
 
@@ -7,47 +9,37 @@ class CustomTextField extends StatelessWidget {
   final bool isPassword;
 
   const CustomTextField({
-    Key? key,
+    super.key,
     required this.label,
     required this.hint,
     this.isPassword = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     return Column(
+      // Kluczowa linia: Wyrównuje etykietę do lewej strony
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // etykieta pola tekstowego
+        // 1. Etykieta (Label)
         Text(
           label,
           style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
             color: textColor,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
           ),
         ),
-        const SizedBox(height: 5),
-        // pole wprowadzania danych
+        const SizedBox(height: 8.0), // Odstęp między etykietą a polem
+
+        // 2. Pole tekstowe (TextField)
         TextField(
           obscureText: isPassword,
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(color: lightTextColor),
-            contentPadding:
-                const EdgeInsets.symmetric(vertical: 15.0, horizontal: 15.0),
-            filled: true,
-            // kolor wypełnienia
-            fillColor: primaryColor.withAlpha(38),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8.0),
-              borderSide: BorderSide.none,
-            ),
-            // kolor ramki po kliknięciu
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8.0),
-              borderSide: const BorderSide(color: primaryColor, width: 2.0),
-            ),
+            // Nie musimy tutaj definiować kolorów, obramowania ani stylu podpowiedzi.
+            // Ten widget AUTOMATYCZNIE pobierze styl 
+            // z `inputDecorationTheme` zdefiniowanego w Twoim pliku `main.dart`.
           ),
         ),
       ],

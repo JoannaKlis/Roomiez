@@ -15,8 +15,8 @@ class CustomTextField extends StatelessWidget {
     required this.hint,
     this.isPassword = false,
     this.controller,
-  }) : super(key: key);
-
+  });
+  
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -41,7 +41,7 @@ class CustomTextField extends StatelessWidget {
           decoration: InputDecoration(
             hintText: hint,
             // Nie musimy tutaj definiować kolorów, obramowania ani stylu podpowiedzi.
-            // Ten widget AUTOMATYCZNIE pobierze styl 
+            // Ten widget AUTOMATYCZNIE pobierze styl
             // z `inputDecorationTheme` zdefiniowanego w Twoim pliku `main.dart`.
           ),
         ),

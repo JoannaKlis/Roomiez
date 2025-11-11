@@ -3,9 +3,68 @@ import '../constants.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_text_field.dart';
 import 'registration_screen.dart';
+import 'package:roomies/services/auth_service.dart';
+import 'dashboard_screen.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+// kontrolery do zarządzania wprowadzonymi danymi
+class _LoginScreenState extends State<LoginScreen> {
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final AuthService _authService = AuthService();
+
+  // funkcja do obsługi logowania
+  void _handleLogin() async {
+    // walidacja pustych pól
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      AuthService.showErrorSnackBar(
+          context, 'Please enter both email and password.');
+      return;
+    }
+
+    final errorMessage = await _authService.signInUser(
+      _emailController.text.trim(),
+      _passwordController.text,
+    );
+
+    if (errorMessage == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Login successful!'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(milliseconds: 500),
+          ),
+        );
+        Future.delayed(const Duration(milliseconds: 500), () {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const DashboardScreen()),
+        );
+      });
+      }
+    } else {
+      // błąd logowania
+      if (mounted) {
+        AuthService.showErrorSnackBar(context, errorMessage);
+      }
+    }
+  }
+
+  // zwolnienie kontrolerów
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -57,12 +116,14 @@ class LoginScreen extends StatelessWidget {
                         ),
                       ),
                       // wprowadzanie danych (email, hasło)
-                      const CustomTextField(
+                      CustomTextField(
+                        controller: _emailController,
                         label: 'Email address',
                         hint: 'Enter your email address',
                       ),
                       const SizedBox(height: 20),
-                      const CustomTextField(
+                      CustomTextField(
+                        controller: _passwordController,
                         label: 'Password',
                         hint: 'Enter your password',
                         isPassword: true,
@@ -88,7 +149,7 @@ class LoginScreen extends StatelessWidget {
                       CustomButton(
                         text: 'Log In',
                         isPrimary: true,
-                        onPressed: () {},
+                        onPressed: _handleLogin,
                       ),
                       const SizedBox(height: 30),
                       // Link do rejestracji

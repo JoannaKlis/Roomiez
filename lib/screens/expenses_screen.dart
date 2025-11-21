@@ -94,19 +94,28 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 // TODO: Otwórz menu (Drawer)
               },
             ),
-            title: const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('ROOMIES', style: TextStyle(fontSize: 20)),
-                Text(
-                  'Sunset Valley 8',
-                  style: TextStyle(
+            title: const Center(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    'ROOMIES',
+                    style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: textColor,
+                    ),
+                  ),
+                  Text(
+                    'Sunset Valley 8',
+                    style: TextStyle(
                     fontSize: 14,
                     color: lightTextColor,
-                    fontWeight: FontWeight.normal,
+                    fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              )
             ),
             actions: [
               IconButton(
@@ -125,12 +134,14 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               delegate: SliverChildListDelegate(
                 [
                   // Tytuł ekranu
-                  const Text(
-                    'Our expenses',
-                    style: TextStyle(
+                  const Center(
+                    child: Text(
+                      'Our expenses',
+                      style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: textColor,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 20),

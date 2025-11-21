@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:roomies/screens/cleaning_schedule_screen.dart';
-import 'package:roomies/screens/expenses_screen.dart';
 import 'constants.dart';
 import 'package:flutter/material.dart';
-import 'screens/cleaning_schedule_screen.dart';
-import 'screens/welcome_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'screens/welcome_screen.dart';
+
+// testing screens
+import 'screens/expenses_screen.dart';
+import 'screens/tasks_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -102,7 +103,7 @@ class MyApp extends StatelessWidget {
       ),
         home: const WelcomeScreen(),
         // zakomentowane ekrany do testowania
-      // home: const CleaningScheduleScreen(),
+      // home: const TasksScreen(),
       // home: const ExpensesScreen(), 
       debugShowCheckedModeBanner: false,
     );

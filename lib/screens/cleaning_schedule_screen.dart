@@ -1,5 +1,3 @@
-// lib/screens/cleaning_schedule_screen.dart
-
 import 'package:flutter/material.dart';
 import '../constants.dart'; // Importowanie Twoich stałych kolorów
 import '../models/task_model.dart'; // Import modelu danych
@@ -92,7 +90,7 @@ class _CleaningScheduleScreenState extends State<CleaningScheduleScreen> {
             title: const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('ROOMIEZ', style: TextStyle(fontSize: 20)),
+                Text('ROOMIES', style: TextStyle(fontSize: 20)),
                 Text(
                   'Sunset Valley 8',
                   style: TextStyle(

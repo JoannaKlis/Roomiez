@@ -1,5 +1,3 @@
-// lib/models/task_model.dart
-
 // Prosty model reprezentujący zadanie do wykonania
 class Task {
   final String id;

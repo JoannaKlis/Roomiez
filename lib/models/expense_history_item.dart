@@ -1,5 +1,3 @@
-// lib/models/expense_history_item.dart
-
 // Prosty model reprezentujący pozycję na liście historii wydatków
 class ExpenseHistoryItem {
   final String id;

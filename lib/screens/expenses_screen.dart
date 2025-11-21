@@ -1,5 +1,3 @@
-// lib/screens/expenses_screen.dart
-
 import 'package:flutter/material.dart';
 import '../constants.dart'; // Importowanie Twoich stałych kolorów
 import '../models/expense_history_item.dart'; // Import modelu danych
@@ -99,7 +97,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
             title: const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('ROOMIEZ', style: TextStyle(fontSize: 20)),
+                Text('ROOMIES', style: TextStyle(fontSize: 20)),
                 Text(
                   'Sunset Valley 8',
                   style: TextStyle(

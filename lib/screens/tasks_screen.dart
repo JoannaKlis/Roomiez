@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
-import '../constants.dart'; // Importowanie Twoich stałych kolorów
-import '../models/task_model.dart'; // Import modelu danych
+import '../constants.dart';
+import '../models/task_model.dart';
 
-class CleaningScheduleScreen extends StatefulWidget {
-  const CleaningScheduleScreen({super.key});
+class TasksScreen extends StatefulWidget {
+  const TasksScreen({super.key});
 
   @override
-  State<CleaningScheduleScreen> createState() => _CleaningScheduleScreenState();
+  State<TasksScreen> createState() => _TasksScreenState();
 }
 
-class _CleaningScheduleScreenState extends State<CleaningScheduleScreen> {
+class _TasksScreenState extends State<TasksScreen> {
   // --- ZARZĄDZANIE STANEM (Logika) ---
 
   int _selectedToggleIndex = 0;
@@ -81,25 +81,35 @@ class _CleaningScheduleScreenState extends State<CleaningScheduleScreen> {
             elevation: 0,
             floating: true,
             pinned: true,
+            centerTitle: true,
             leading: IconButton(
               icon: const Icon(Icons.menu, color: textColor),
               onPressed: () {
                 // TODO: Otwórz menu (Drawer)
               },
             ),
-            title: const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('ROOMIES', style: TextStyle(fontSize: 20)),
-                Text(
-                  'Sunset Valley 8',
-                  style: TextStyle(
+            title: const Center(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    'ROOMIES',
+                    style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: textColor,
+                    ),
+                  ),
+                  Text(
+                    'Sunset Valley 8',
+                    style: TextStyle(
                     fontSize: 14,
                     color: lightTextColor,
-                    fontWeight: FontWeight.normal,
+                    fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              )
             ),
             actions: [
               IconButton(
@@ -118,12 +128,14 @@ class _CleaningScheduleScreenState extends State<CleaningScheduleScreen> {
               delegate: SliverChildListDelegate(
                 [
                   // Tytuł ekranu
-                  const Text(
-                    'Cleaning schedule',
-                    style: TextStyle(
+                  const Center(
+                    child: Text(
+                      'Tasks',
+                      style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: textColor,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 20),

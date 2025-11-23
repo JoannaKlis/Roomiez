@@ -47,6 +47,7 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const DashboardScreen()),
+          //jeśli już ma groupId to nie pokazuj ekranu z dołączeniem/tworzeniem miejsca, jak będzie ekran 5
         );
       });
       }

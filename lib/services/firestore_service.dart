@@ -1,13 +1,61 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:uuid/uuid.dart';
 import '../models/task_model.dart';
 import '../models/expense_history_item.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:roomies/utils/user_roles.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
   // stała do pobierania danych dla 'default_group'
   // w przyszłości zmienić na dynamiczne pobieranie id grupy zalogowanego użytkownika
   static const String _defaultGroupId = 'default_group'; 
+
+  Future<String> createNewGroup(String Name) async {
+    try {
+      final String userId = FirebaseAuth.instance.currentUser!.uid;
+      var uuid = Uuid();
+      String groupId;
+      final snapshot = await _firestore
+          .collection('groups')
+          .get();
+      List groups = snapshot.docs.map((doc) => doc.id).toList();
+      do{
+        groupId = uuid.v4().substring(0,6);
+      } while(groups.contains(groupId));
+        await _firestore.collection('groups').doc(groupId).set({
+          'name': Name, 
+        });
+        await _firestore.collection('users').doc(userId).update({
+          'role': UserRole.apartmentManager,
+          'groupId': groupId,
+        });
+    return groupId;
+    } catch (e) {
+      return "";
+    }
+  }
+
+
+Future<bool> addUserToGroup(String groupId) async {
+  try{
+    final String userId = FirebaseAuth.instance.currentUser!.uid;
+          final snapshot = await _firestore
+          .collection('groups')
+          .get();
+      List groups = snapshot.docs.map((doc) => doc.id).toList();
+      if(!groups.contains(groupId)){
+          return false;
+      }
+        await _firestore.collection('users').doc(userId).update({
+          'groupId': groupId,
+        });
+        return true;
+    } catch (e) {
+      return false;
+    }
+}
+
 
   // pobieranie użytkowników z tej samej grupy
   Future<List<Map<String, String>>> getCurrentApartmentUsers() async {

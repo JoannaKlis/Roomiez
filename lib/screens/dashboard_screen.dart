@@ -1,8 +1,75 @@
 import 'package:flutter/material.dart';
 import '../constants.dart';
 import '../widgets/custom_text_field.dart';
-class DashboardScreen extends StatelessWidget {
+import '../services/firestore_service.dart';
+
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState  extends State<DashboardScreen>{
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _groupIdController = TextEditingController();
+  final FirestoreService _firestoreService = FirestoreService(); 
+
+
+  void _handleCreate() async {
+    if (_nameController.text.isEmpty) {
+      showSnackBarColor(
+          context, 'Please enter the name of your place!', Colors.red);
+      return;
+    }
+
+    final groupId = await _firestoreService.createNewGroup(_nameController.text);
+
+    if (groupId != "") {
+      showSnackBarColor(context, "Success", Colors.green);
+      // przejscie na kolejny ekran      
+    } else {
+        showSnackBarColor(context, "Cannot create a group", Colors.red);
+    }
+  }
+
+  
+  void _handleJoin() async {
+    if (_groupIdController.text.isEmpty) {
+      showSnackBarColor(
+          context, 'Please enter an invite code!', Colors.red);
+      return;
+    }
+
+    bool success = await _firestoreService.addUserToGroup(_groupIdController.text);
+
+    if (success) {
+      showSnackBarColor(context, "Success", Colors.green);
+      // przejscie na kolejny ekran      
+    } else {
+        showSnackBarColor(context, "This group doesn't exist!", Colors.red);
+    }
+  }
+
+  // zwolnienie kontrolerów
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _groupIdController.dispose();
+    super.dispose();
+  }
+
+
+  static void showSnackBarColor(BuildContext context, String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -82,14 +149,16 @@ class DashboardScreen extends StatelessWidget {
                                     ),
                                   ],
                                 ),
-                                const CustomTextField(
+                                CustomTextField(
+                                        controller: _nameController,
                                         label: '',
                                         hint: 'Enter the name of your place',
                                       ),
                                 const SizedBox(height: 10),
                                 ElevatedButton(
                                   onPressed: () {
-                                    //przejście na główną, nadanie admina
+                                    _handleCreate();
+                                    //przejście na główną
                                   },
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: primaryColor,
@@ -134,13 +203,15 @@ class DashboardScreen extends StatelessWidget {
                                     ),
                                   ],
                                 ),
-                                const CustomTextField(
+                                CustomTextField(
+                                  controller: _groupIdController,
                                   label: '',
                                   hint: 'Enter an invite code',
                                 ),
                                 const SizedBox(height: 10),
                                 ElevatedButton(
                                   onPressed: () {
+                                    _handleJoin();
                                     //przejście na główną
                                   },
                                   style: ElevatedButton.styleFrom(

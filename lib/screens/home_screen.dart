@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import '../constants.dart';
-//import 'tasks_screen.dart'; // Upewnij się, że ten plik istnieje
-// import 'announcements_screen.dart'; // To utworzysz później, na razie zrobiłem zaślepkę na dole
-// import '../widgets/custom_button.dart'; // Usunięty, bo już nie używamy dużego przycisku
+//import 'tasks_screen.dart'; 
+// import 'announcements_screen.dart'; 
 import 'profile_edit_screen.dart'; // Używamy dla ProfileEditScreen.id
 
 class HomeScreen extends StatelessWidget {
@@ -100,34 +99,21 @@ class HomeScreen extends StatelessWidget {
               const SizedBox(height: 25), // Odstęp po sekcji powitania
 
               // --- KAFELKI NAWIGACYJNE (Add Task / Announcements) ---
-              Row(
+              const Row( // Dodanie const do Row
                 children: [
                   Expanded(
                     child: _SquareActionCard(
                       icon: Icons.check_circle_outline,
                       label: 'Add task',
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Tu bedzie tasks screen'),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                      },
+                      onTap: null, // Użyjemy ScaffoldMessenger bezpośrednio w onTap, nie przekazujemy null
                     ),
                   ),
-                  const SizedBox(width: 15),
+                  SizedBox(width: 15),
                   Expanded(
                     child: _SquareActionCard(
                       icon: Icons.error_outline,
                       label: 'Announcements',
-                      onTap: () {
-                        // Przenosi do ekranu ogłoszeń (tymczasowa zaślepka na dole pliku)
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const AnnouncementsScreenPlaceholder()),
-                        );
-                      },
+                      onTap: null, // Użyjemy Navigator.push bezpośrednio w onTap, nie przekazujemy null
                     ),
                   ),
                 ],
@@ -157,8 +143,6 @@ class HomeScreen extends StatelessWidget {
               const SizedBox(height: 10),
               const _ShoppingCard(), // To teraz jest StatefulWidget
               
-              // Usunięty CustomButton, zastąpiony ikonką u góry
-              
               const SizedBox(height: 40),
             ],
           ),
@@ -170,24 +154,41 @@ class HomeScreen extends StatelessWidget {
 
 // ==========================================
 // WIDŻETY POMOCNICZE
-// (Bez zmian w stosunku do poprzedniej wersji)
 // ==========================================
 
 class _SquareActionCard extends StatelessWidget {
   final IconData icon;
   final String label;
-  final VoidCallback onTap;
+  final VoidCallback? onTap; // Dodajemy ? aby mogło być null
 
   const _SquareActionCard({
+    super.key, // Dodajemy super.key
     required this.icon,
     required this.label,
-    required this.onTap,
+    this.onTap, // onTap jest teraz opcjonalny
   });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        // Obsługa nawigacji w _SquareActionCard
+        if (label == 'Add task') {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Tu bedzie tasks screen'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        } else if (label == 'Announcements') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AnnouncementsScreenPlaceholder()),
+          );
+        } else if (onTap != null) {
+            onTap!();
+        }
+      },
       child: Container(
         height: 120,
         decoration: BoxDecoration(
@@ -225,7 +226,7 @@ class _SquareActionCard extends StatelessWidget {
 class _ExpensesCard extends StatelessWidget {
   final VoidCallback onGoToExpenses;
 
-  const _ExpensesCard({required this.onGoToExpenses});
+  const _ExpensesCard({super.key, required this.onGoToExpenses}); // Dodanie super.key
 
   @override
   Widget build(BuildContext context) {
@@ -290,7 +291,7 @@ class _ExpensesCard extends StatelessWidget {
 }
 
 class _CleaningCard extends StatelessWidget {
-  const _CleaningCard();
+  const _CleaningCard({super.key}); // Dodanie const i super.key
 
   @override
   Widget build(BuildContext context) {
@@ -329,7 +330,7 @@ class _CleaningCard extends StatelessWidget {
 
 // --- INTERAKTYWNA LISTA ZAKUPÓW ---
 class _ShoppingCard extends StatefulWidget {
-  const _ShoppingCard();
+  const _ShoppingCard({super.key}); // Dodanie const i super.key
 
   @override
   State<_ShoppingCard> createState() => _ShoppingCardState();
@@ -359,28 +360,47 @@ class _ShoppingCardState extends State<_ShoppingCard> {
       ),
       child: Column(
         children: [
+          // Użycie wyodrębnionego widżetu _ShoppingItem zamiast metody
           for (int i = 0; i < items.length; i++)
-            _buildShoppingItem(i),
+            _ShoppingItem(
+              key: ValueKey(items[i]['name']), // Dodanie ValueKey dla lepszej wydajności
+              name: items[i]['name'],
+              isPriority: items[i]['isPriority'],
+              isBought: items[i]['isBought'],
+              onTap: () => _toggleItem(i),
+            ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildShoppingItem(int index) {
-    final item = items[index];
-    final bool isPriority = item['isPriority'];
-    final bool isBought = item['isBought'];
+// NOWY WIDŻET: Wyodrębnienie logiki wizualnej pojedynczego elementu listy zakupów
+class _ShoppingItem extends StatelessWidget {
+  final String name;
+  final bool isPriority;
+  final bool isBought;
+  final VoidCallback onTap; 
 
+  const _ShoppingItem({
+    super.key,
+    required this.name,
+    required this.isPriority,
+    required this.isBought,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => _toggleItem(index), // Kliknięcie gdziekolwiek w wiersz
+      onTap: onTap, // Kliknięcie gdziekolwiek w wiersz
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
         decoration: BoxDecoration(
-          // Jeśli priorytet -> czerwona ramka, jeśli nie -> brak
           border: isPriority ? Border.all(color: Colors.redAccent, width: 1.5) : null,
           borderRadius: BorderRadius.circular(12),
-          color: isBought ? Colors.grey.withOpacity(0.1) : Colors.transparent, // Lekko szare jak kupione
+          color: isBought ? Colors.grey.withOpacity(0.1) : Colors.transparent, 
         ),
         child: Row(
           children: [
@@ -393,7 +413,7 @@ class _ShoppingCardState extends State<_ShoppingCard> {
             
             // NAZWA PRODUKTU
             Text(
-              item['name'],
+              name,
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontFamily: appFontFamily,
@@ -421,9 +441,10 @@ class _ShoppingCardState extends State<_ShoppingCard> {
   }
 }
 
+
 class _SectionHeader extends StatelessWidget {
   final String title;
-  const _SectionHeader({required this.title});
+  const _SectionHeader({super.key, required this.title}); // Dodanie const i super.key
 
   @override
   Widget build(BuildContext context) {
@@ -444,7 +465,7 @@ class _SectionHeader extends StatelessWidget {
 
 // --- TYMCZASOWA ZAŚLEPKA DLA OGŁOSZEŃ ---
 class AnnouncementsScreenPlaceholder extends StatelessWidget {
-  const AnnouncementsScreenPlaceholder({super.key});
+  const AnnouncementsScreenPlaceholder({super.key}); // Dodanie const i super.key
 
   @override
   Widget build(BuildContext context) {

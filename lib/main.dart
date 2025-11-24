@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'constants.dart';
-import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'screens/welcome_screen.dart';
@@ -29,24 +28,13 @@ class MyApp extends StatelessWidget {
         fontFamily: appFontFamily,
         primaryColor: primaryColor,
         scaffoldBackgroundColor: backgroundColor,
-        // Globalny styl tekstu
-        textTheme: const TextTheme(
-          displayLarge: TextStyle(color: textColor),
-          displayMedium: TextStyle(color: textColor),
-          displaySmall: TextStyle(color: textColor),
-          headlineLarge: TextStyle(color: textColor),
-          headlineMedium: TextStyle(color: textColor),
-          headlineSmall: TextStyle(color: textColor),
-          titleLarge: TextStyle(color: textColor),
-          titleMedium: TextStyle(color: textColor),
-          titleSmall: TextStyle(color: textColor),
-          bodyLarge: TextStyle(color: textColor),
-          bodyMedium: TextStyle(color: textColor),
-          bodySmall: TextStyle(color: textColor),
-          labelLarge: TextStyle(color: textColor),
-          labelMedium: TextStyle(color: textColor),
-          labelSmall: TextStyle(color: textColor),
+        
+        // GLOBALNY STYL TEKSTU - Uproszczone: narzuca textColor na wszystkie style.
+        textTheme: ThemeData.light().textTheme.apply(
+          bodyColor: textColor,
+          displayColor: textColor,
         ),
+        
         // Styl paska aplikacji
         appBarTheme: const AppBarTheme(
           backgroundColor: backgroundColor,
@@ -103,11 +91,11 @@ class MyApp extends StatelessWidget {
         ),
       ),
       routes: {
-        // ... inne istniejące trasy
-        ProfileEditScreen.id: (context) => const ProfileEditScreen(), // DODAJ TĘ LINIĘ
-    },
-        home: const WelcomeScreen(),
-        // zakomentowane ekrany do testowania
+        // Wszystkie trasy powinny być zdefiniowane w jednym miejscu
+        ProfileEditScreen.id: (context) => const ProfileEditScreen(), 
+      },
+      home: const WelcomeScreen(),
+      // zakomentowane ekrany do testowania
       // home: const TasksScreen(),
       // home: const ExpensesScreen(), 
       // home: const ProfileEditScreen(),

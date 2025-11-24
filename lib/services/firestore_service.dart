@@ -113,4 +113,38 @@ Future<bool> addUserToGroup(String groupId) async {
       return snapshot.docs.map((doc) => ExpenseHistoryItem.fromMap(doc.data(), doc.id)).toList();
     });
   }
+
+  // POBIERANIE DANYCH PROFILU UŻYTKOWNIKA
+  Future<Map<String, dynamic>?> getCurrentUserProfile() async {
+    try {
+      final String userId = FirebaseAuth.instance.currentUser!.uid;
+      final userDoc = await _firestore.collection('users').doc(userId).get();
+      if (userDoc.exists) {
+        // Zwraca mapę z danymi, np. {'firstName': '...', 'lastName': '...', 'email': '...'}
+        return userDoc.data(); 
+      }
+      return null;
+    } catch (e) {
+      print('Error fetching user profile: $e');
+      return null;
+    }
+  }
+
+  // AKTUALIZACJA DANYCH PROFILU UŻYTKOWNIKA
+  Future<String?> updateUserProfile(String firstName, String lastName) async {
+    try {
+      final String userId = FirebaseAuth.instance.currentUser!.uid;
+      await _firestore.collection('users').doc(userId).update({
+        'firstName': firstName,
+        'lastName': lastName,
+      });
+      return null; // Oznacza sukces
+    } catch (e) {
+      // Obsługa błędów, np. brak uprawnień
+      if (e is FirebaseException) {
+        return e.message;
+      }
+      return 'An unexpected error occurred: ${e.toString()}';
+    }
+  }
 }

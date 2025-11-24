@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../constants.dart';
 //import 'tasks_screen.dart'; // Upewnij się, że ten plik istnieje
 // import 'announcements_screen.dart'; // To utworzysz później, na razie zrobiłem zaślepkę na dole
+// import '../widgets/custom_button.dart'; // Usunięty, bo już nie używamy dużego przycisku
+import 'profile_edit_screen.dart'; // Używamy dla ProfileEditScreen.id
 
 class HomeScreen extends StatelessWidget {
   final String roomName;
@@ -63,17 +65,39 @@ class HomeScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Powitanie
-              const Text(
-                'Hello, Jack!',
-                style: TextStyle(
-                  fontSize: 26,
-                  fontFamily: appFontFamily,
-                  fontWeight: FontWeight.w900,
-                  color: textColor,
-                ),
+              // --- Powitanie i Edycja Profilu ---
+              Row(
+                mainAxisSize: MainAxisSize.min, // Ogranicza szerokość Row do zawartości
+                mainAxisAlignment: MainAxisAlignment.center, // Centruje zawartość
+                children: [
+                  // Powitanie
+                  const Text(
+                    'Hello, Jack!',
+                    style: TextStyle(
+                      fontSize: 26,
+                      fontFamily: appFontFamily,
+                      fontWeight: FontWeight.w900,
+                      color: textColor,
+                    ),
+                  ),
+                  // Ikonka edycji profilu
+                  IconButton(
+                    icon: const Icon(
+                      Icons.edit, // Ikonka ołówka/edytowania
+                      color: lightTextColor, // Używamy jaśniejszego koloru
+                      size: 26,
+                    ),
+                    // Używamy minimalnego paddingu/ograniczeń dla lepszego dopasowania
+                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                    constraints: const BoxConstraints(), 
+                    onPressed: () {
+                      // Nawigacja do ekranu edycji profilu
+                      Navigator.pushNamed(context, ProfileEditScreen.id); 
+                    },
+                  ),
+                ],
               ),
-              const SizedBox(height: 25),
+              const SizedBox(height: 25), // Odstęp po sekcji powitania
 
               // --- KAFELKI NAWIGACYJNE (Add Task / Announcements) ---
               Row(
@@ -83,22 +107,13 @@ class HomeScreen extends StatelessWidget {
                       icon: Icons.check_circle_outline,
                       label: 'Add task',
                       onTap: () {
-                    // NA RAZIE TYLKO KOMUNIKAT, ŻE DZIAŁA
-                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Tu bedzie tasks screen'),
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-      
-                    // Jak bedzie dzialajacy screen task to odkomentowac ponizsze:
-                    /*
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const TasksScreen()),
-                    );
-                    */
-                  },
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Tu bedzie tasks screen'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      },
                     ),
                   ),
                   const SizedBox(width: 15),
@@ -124,7 +139,7 @@ class HomeScreen extends StatelessWidget {
               const SizedBox(height: 10),
               _ExpensesCard(
                 onGoToExpenses: () {
-                   // Tutaj możesz podpiąć nawigację do expenses_screen.dart
+                    // Tutaj możesz podpiąć nawigację do expenses_screen.dart
                 },
               ),
 
@@ -142,6 +157,8 @@ class HomeScreen extends StatelessWidget {
               const SizedBox(height: 10),
               const _ShoppingCard(), // To teraz jest StatefulWidget
               
+              // Usunięty CustomButton, zastąpiony ikonką u góry
+              
               const SizedBox(height: 40),
             ],
           ),
@@ -153,6 +170,7 @@ class HomeScreen extends StatelessWidget {
 
 // ==========================================
 // WIDŻETY POMOCNICZE
+// (Bez zmian w stosunku do poprzedniej wersji)
 // ==========================================
 
 class _SquareActionCard extends StatelessWidget {

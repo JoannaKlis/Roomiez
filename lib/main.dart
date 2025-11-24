@@ -8,6 +8,7 @@ import 'screens/welcome_screen.dart';
 // testing screens
 import 'screens/expenses_screen.dart';
 import 'screens/tasks_screen.dart';
+import 'screens/profile_edit_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -101,10 +102,15 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
+      routes: {
+        // ... inne istniejące trasy
+        ProfileEditScreen.id: (context) => const ProfileEditScreen(), // DODAJ TĘ LINIĘ
+    },
         home: const WelcomeScreen(),
         // zakomentowane ekrany do testowania
       // home: const TasksScreen(),
       // home: const ExpensesScreen(), 
+      // home: const ProfileEditScreen(),
       debugShowCheckedModeBanner: false,
     );
   }

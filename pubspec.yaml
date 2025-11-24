@@ -22,5 +22,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  assets:
-    - assets/
+  
+  fonts:
+    - family: Baloo Bhai   # Ta nazwa musi być IDENTYCZNA jak w constants.dart
+      fonts:
+        - asset: assets/fonts/Baloo Bhai Regular 400.ttf # Tu musi być dokładna nazwa pliku który wrzuciłaś

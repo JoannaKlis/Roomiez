@@ -20,27 +20,30 @@ class _TasksScreenState extends State<TasksScreen> {
   // pobieranie UID z zalogowanego użytkownika
   // jeśli null, będzie pusty string
   final String _currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
-  final String _defaultGroupId = FirestoreService.defaultGroupId;
+  String _groupName = 'Ładowanie...';
+  String _userGroupId = '';
+  bool _hasGroupError = false;
 
   int _selectedToggleIndex = 0;
   String? _selectedRoomieId;
   String? _selectedRoomieName;
   final TextEditingController _descriptionController = TextEditingController();
   bool _isNewTaskFormVisible = false;
-  DateTime _selectedDueDate = DateTime.now().add(const Duration(days: 1)); // domyślnie jutro 
+  DateTime _selectedDueDate =
+      DateTime.now().add(const Duration(days: 1)); // domyślnie jutro
 
   List<Map<String, String>> _roomies = [];
   bool _isLoadingRoomies = true;
 
   // --- logika firestore ---
   // fetchowanie współlokatorów z Firestore, jeili użytkownik jest zalogowany
-  @override
   void initState() {
     super.initState();
     if (_currentUserId.isNotEmpty) {
-      _fetchRoomies();
+      _loadGroupData();
     } else {
       _isLoadingRoomies = false;
+      _hasGroupError = true;
     }
   }
 
@@ -50,22 +53,19 @@ class _TasksScreenState extends State<TasksScreen> {
     super.dispose();
   }
 
-
   // pobieranie współlokatorów z Firestore
-  void _fetchRoomies() async {
-    // sprawdzenie czy UID nie jest puste
-    if (_currentUserId.isEmpty) {
-      setState(() => _isLoadingRoomies = false);
-      return;
-    }
-    
-    final users = await _firestoreService.getCurrentApartmentUsers();
+  void _fetchRoomies(String groupId) async {
+    // jeśli nie ma grupy, nie pobieraj
+    if (groupId.isEmpty) return;
+
+    final users = await _firestoreService.getCurrentApartmentUsers(groupId);
     setState(() {
       _roomies = users;
       _isLoadingRoomies = false;
 
       // wybór bieżącego użytkownika (jeśli jest na liście)
-      final self = _roomies.firstWhere((u) => u['id'] == _currentUserId, orElse: () => {});
+      final self = _roomies.firstWhere((u) => u['id'] == _currentUserId,
+          orElse: () => {});
       if (self.isNotEmpty) {
         _selectedRoomieId = self['id'];
         _selectedRoomieName = self['name'];
@@ -77,6 +77,40 @@ class _TasksScreenState extends State<TasksScreen> {
     });
   }
 
+  // pobieranie nazwy grupy i ID użytkownika
+  void _loadGroupData() async {
+    try {
+      // pobranie groupId
+      final groupId = await _firestoreService.getCurrentUserGroupId();
+      // pobranie nazwy grupy
+      final name = await _firestoreService.getGroupName(groupId);
+
+      if (mounted) {
+        setState(() {
+          _userGroupId = groupId;
+          _groupName = name;
+        });
+        // pobranie współlokatorów
+        _fetchRoomies(groupId);
+      }
+    } catch (e) {
+      // obsługa błędów rzuconych przez getCurrentUserGroupId
+      print('Group Loading Error: $e');
+      if (mounted) {
+        setState(() {
+          _groupName = 'No group found';
+          _isLoadingRoomies = false;
+          _hasGroupError = true;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Error: ${e.toString()}'),
+              backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   // wybór daty i godziny dueDate
   void _selectDateTime() async {
     final DateTime? date = await showDatePicker(
@@ -84,6 +118,31 @@ class _TasksScreenState extends State<TasksScreen> {
       initialDate: _selectedDueDate,
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
+
+      // własny motyw
+      builder: (BuildContext context, Widget? child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            textTheme:
+                Theme.of(context).textTheme.apply(fontFamily: 'Baloo Bhai'),
+
+            colorScheme: ColorScheme.light(
+              primary:
+                  primaryColor, // kolor nagłówka, aktywnych dni, przycisków
+              onPrimary: backgroundColor, // kolor tekstu na tle primary
+              surface: backgroundColor, // kolor tła kalendarza
+              onSurface: textColor, // kolor tekstu (dni)
+            ),
+            // styl przycisków akcji (OK/CANCEL)
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: primaryColor, // solor tekstu przycisków akcji
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (date == null) return;
@@ -91,6 +150,29 @@ class _TasksScreenState extends State<TasksScreen> {
     final TimeOfDay? time = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(_selectedDueDate),
+
+      // nałożenie motywu
+      builder: (BuildContext context, Widget? child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            textTheme:
+                Theme.of(context).textTheme.apply(fontFamily: 'Baloo Bhai'),
+            colorScheme: ColorScheme.light(
+              primary:
+                  primaryColor, // kolor akcentu (wskazówka zegara, tło wybranego numeru)
+              onPrimary: backgroundColor, // kolor tekstu na tle primary
+              surface: backgroundColor, // tło całego zegara
+              onSurface: textColor, // kolor cyfr
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: primaryColor,
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (time == null) {
@@ -114,9 +196,15 @@ class _TasksScreenState extends State<TasksScreen> {
 
   // dodawanie nowego zadania
   void _addNewTask() {
-    if (_descriptionController.text.isEmpty || _selectedRoomieId == null) {
+    if (_descriptionController.text.isEmpty ||
+        _selectedRoomieId == null ||
+        _userGroupId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in the description, assign a roomie, and select a due date.')),
+        SnackBar(
+            content: Text(_userGroupId.isEmpty
+                ? 'Error: You must belong to a group to add tasks.'
+                : 'Please fill all fields.'),
+            backgroundColor: Colors.red),
       );
       return;
     }
@@ -126,7 +214,7 @@ class _TasksScreenState extends State<TasksScreen> {
       title: _descriptionController.text.trim(),
       assignedToId: _selectedRoomieId!,
       assignedToName: _selectedRoomieName!,
-      groupId: _defaultGroupId, 
+      groupId: _userGroupId,
       isDone: false,
       dueDate: _selectedDueDate,
     );
@@ -137,11 +225,15 @@ class _TasksScreenState extends State<TasksScreen> {
         _descriptionController.clear();
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Task added successfully!'), backgroundColor: Colors.green),
+        const SnackBar(
+            content: Text('Task added successfully!'),
+            backgroundColor: Colors.green),
       );
     }).catchError((e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error adding task: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('Error adding task: $e'),
+            backgroundColor: Colors.red),
       );
     });
   }
@@ -150,11 +242,12 @@ class _TasksScreenState extends State<TasksScreen> {
   void _toggleTaskStatus(String taskId, bool newStatus) {
     _firestoreService.updateTaskStatus(taskId, newStatus).catchError((e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error updating task: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('Error updating task: $e'),
+            backgroundColor: Colors.red),
       );
     });
   }
-
 
   // --- BUDOWANIE INTERFEJSU (UI) ---
   @override
@@ -175,11 +268,11 @@ class _TasksScreenState extends State<TasksScreen> {
                 // TODO: Otwórz menu (Drawer)
               },
             ),
-            title: const Center(
+            title: Center(
                 child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text(
+                const Text(
                   'ROOMIES',
                   style: TextStyle(
                     fontSize: 24,
@@ -188,8 +281,8 @@ class _TasksScreenState extends State<TasksScreen> {
                   ),
                 ),
                 Text(
-                  'Sunset Valley 8',
-                  style: TextStyle(
+                  _groupName,
+                  style: const TextStyle(
                     fontSize: 14,
                     color: lightTextColor,
                     fontWeight: FontWeight.bold,
@@ -302,7 +395,8 @@ class _TasksScreenState extends State<TasksScreen> {
                 // zresetuj pole opisu jeśli anulowano
                 if (!_isNewTaskFormVisible) {
                   _descriptionController.clear();
-                  _selectedDueDate = DateTime.now().add(const Duration(days: 1)); // reset daty
+                  _selectedDueDate =
+                      DateTime.now().add(const Duration(days: 1)); // reset daty
                 }
               });
             },
@@ -355,7 +449,9 @@ class _TasksScreenState extends State<TasksScreen> {
               labelStyle: const TextStyle(color: textColor),
               filled: true,
               fillColor: primaryColor.withAlpha(38),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0), borderSide: BorderSide.none),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8.0),
+                  borderSide: BorderSide.none),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8.0),
                 borderSide: const BorderSide(color: primaryColor, width: 2.0),
@@ -371,12 +467,15 @@ class _TasksScreenState extends State<TasksScreen> {
                 child: Text(user['name']!),
               );
             }).toList(),
-            onChanged: _isLoadingRoomies ? null : (String? newValue) {
-              setState(() {
-                _selectedRoomieId = newValue;
-                _selectedRoomieName = _roomies.firstWhere((user) => user['id'] == newValue)['name']; 
-              });
-            },
+            onChanged: _isLoadingRoomies
+                ? null
+                : (String? newValue) {
+                    setState(() {
+                      _selectedRoomieId = newValue;
+                      _selectedRoomieName = _roomies
+                          .firstWhere((user) => user['id'] == newValue)['name'];
+                    });
+                  },
           ),
           const SizedBox(height: 10),
 
@@ -398,7 +497,7 @@ class _TasksScreenState extends State<TasksScreen> {
           const SizedBox(height: 10),
 
           // Przycisk "SUBMIT"
-          SizedBox (
+          SizedBox(
             width: double.infinity,
             child: ElevatedButton(
               onPressed: _addNewTask,
@@ -460,50 +559,55 @@ class _TasksScreenState extends State<TasksScreen> {
 
   /// Lista zadań (filtrowana)
   Widget _buildTaskList() {
-   return StreamBuilder<List<Task>>(
-     stream: _firestoreService.getTasks(),
-     builder: (context, snapshot) {
-       if (snapshot.connectionState == ConnectionState.waiting) {
-         // zwracamy SliverToBoxAdapter dla RenderBoxa (ładowanie)
-         return const SliverToBoxAdapter(
-           child: Center(child: CircularProgressIndicator()),
-         );
-       }
-       if (snapshot.hasError) {
-           return SliverToBoxAdapter(
-             child: Center(child: Text('Error loading tasks: ${snapshot.error}', style: const TextStyle(color: Colors.red))),
-           );
-       }
-       if (!snapshot.hasData || snapshot.data!.isEmpty) {
-         return const SliverToBoxAdapter(
-             child: Center(child: Text('No tasks found!', style: TextStyle(color: textColor))));
-       }
+    return StreamBuilder<List<Task>>(
+      stream: _firestoreService.getTasks(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          // zwracamy SliverToBoxAdapter dla RenderBoxa (ładowanie)
+          return const SliverToBoxAdapter(
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (snapshot.hasError) {
+          return SliverToBoxAdapter(
+            child: Center(
+                child: Text('Error loading tasks: ${snapshot.error}',
+                    style: const TextStyle(color: Colors.red))),
+          );
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const SliverToBoxAdapter(
+              child: Center(
+                  child: Text('No tasks found!',
+                      style: TextStyle(color: textColor))));
+        }
 
-       final allTasks = snapshot.data!;
-       final filteredTasks = allTasks.where((task) {
-         if (_selectedToggleIndex == 1) { // My tasks
-           return task.assignedToId == _currentUserId;
-         }
-         return true; // All tasks
-       }).toList();
+        final allTasks = snapshot.data!;
+        final filteredTasks = allTasks.where((task) {
+          if (_selectedToggleIndex == 1) {
+            // My tasks
+            return task.assignedToId == _currentUserId;
+          }
+          return true; // All tasks
+        }).toList();
 
-       // zwracamy SliverList
-       return SliverList(
-         delegate: SliverChildBuilderDelegate(
-           (context, index) {
-             final task = filteredTasks[index];
-             return Padding(
+        // zwracamy SliverList
+        return SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              final task = filteredTasks[index];
+              return Padding(
                 // dodajemy Padding do elementu listy, aby uzyskać marginesy boczne
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: _buildTaskListItem(task),
-             );
-           },
-           childCount: filteredTasks.length,
-         ),
-       );
-     },
-   );
- }
+              );
+            },
+            childCount: filteredTasks.length,
+          ),
+        );
+      },
+    );
+  }
 
   // Pojedynczy element na liście zadań
   Widget _buildTaskListItem(Task task) {
@@ -583,8 +687,8 @@ class _TasksScreenState extends State<TasksScreen> {
                   fontSize: 14,
                 ),
               ),
-              Text( 
-                task.dueDate is DateTime 
+              Text(
+                task.dueDate is DateTime
                     ? DateFormat('dd.MM.yyyy').format(task.dueDate as DateTime)
                     : task.dueDate.toString(),
                 style: const TextStyle(color: lightTextColor, fontSize: 12),

@@ -20,7 +20,7 @@ class _TasksScreenState extends State<TasksScreen> {
   // pobieranie UID z zalogowanego użytkownika
   // jeśli null, będzie pusty string
   final String _currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
-  String _groupName = 'Ładowanie...';
+  String _groupName = 'Loading...';
   String _userGroupId = '';
   bool _hasGroupError = false;
 

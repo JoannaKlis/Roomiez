@@ -1,6 +1,9 @@
-/*import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 import '../constants.dart'; // Importowanie Twoich stałych kolorów
 import '../models/expense_history_item.dart'; // Import modelu danych
+import '../services/firestore_service.dart';
 
 class ExpensesScreen extends StatefulWidget {
   const ExpensesScreen({super.key});
@@ -12,68 +15,162 @@ class ExpensesScreen extends StatefulWidget {
 class _ExpensesScreenState extends State<ExpensesScreen> {
   // --- ZARZĄDZANIE STANEM (Logika) ---
 
+  final FirestoreService _firestoreService = FirestoreService();
+  final String _currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+  String _groupName = 'Loading...';
+  String _userGroupId = '';
+  bool _hasGroupError = false;
+
   int _selectedToggleIndex = 0;
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _amountController = TextEditingController();
 
-  final Map<String, bool> _splitWith = {
-    'Ana': false,
-    'Martin': false,
-  };
-  
-  // --- POPRAWKA 1: Nowa zmienna stanu do zarządzania widocznością formularza ---
+  Map<String, String> _splitWith = {};
+
+  List<Map<String, String>> _roomies = [];
+  bool _isLoadingRoomies = true;
+
+  final double _netBalance =
+      50.00; // tymczasowe saldo dopóki nie ma logiki dzielenia rachunków
   bool _isNewExpenseFormVisible = false;
-  // --- Koniec POPRAWKI 1 ---
 
-  final String _currentUser = 'Jack';
-  final double _netBalance = 50.00;
-
-  // --- DANE TYMCZASOWE (Mock Data) ---
-  final List<ExpenseHistoryItem> _allTransactions = [
-    ExpenseHistoryItem(
-      id: '1',
-      description: 'Pizza',
-      subtext: 'Ana and Martin owe you',
-      amount: 40.00,
-      date: 'Today',
-      type: 'lent',
-    ),
-    ExpenseHistoryItem(
-      id: '2',
-      description: 'Bread',
-      subtext: 'You owe Martin',
-      amount: -2.25,
-      date: 'Yesterday',
-      type: 'owed',
-    ),
-    ExpenseHistoryItem(
-      id: '3',
-      description: 'Rent',
-      subtext: 'Settled',
-      amount: -200.00,
-      date: '31.10.2025',
-      type: 'settled',
-    ),
-  ];
-
-  // --- LOGIKA FILTROWANIA ---
-  List<ExpenseHistoryItem> get _filteredTransactions {
-    switch (_selectedToggleIndex) {
-      case 1: // Owed
-        return _allTransactions.where((t) => t.type == 'owed').toList();
-      case 2: // Lent
-        return _allTransactions.where((t) => t.type == 'lent').toList();
-      case 0: // All
-      default:
-        return _allTransactions;
+  // --- logika firestore ---
+  // fetchowanie współlokatorów z Firestore, jeili użytkownik jest zalogowany
+  @override
+  void initState() {
+    super.initState();
+    if (_currentUserId.isNotEmpty) {
+      _loadGroupData();
+    } else {
+      _isLoadingRoomies = false;
+      _hasGroupError = true;
     }
   }
-  
+
   @override
   void dispose() {
     _descriptionController.dispose();
     _amountController.dispose();
     super.dispose();
+  }
+
+  // pobieranie nazwy mieszkania i współlokatorów z Firestore
+  void _loadGroupData() async {
+    try {
+      // pobranie i weryfikacja groupId
+      final groupId = await _firestoreService.getCurrentUserGroupId();
+
+      // pobranie nazwy grupy
+      final name = await _firestoreService.getGroupName(groupId);
+
+      // pobranie współlokatorów
+      final users = await _firestoreService.getCurrentApartmentUsers(groupId);
+
+      if (mounted) {
+        final Map<String, String> initialSplit = {};
+        for (var user in users) {
+          initialSplit[user['id']!] = 'true';
+        }
+
+        setState(() {
+          _userGroupId = groupId;
+          _groupName = name;
+          _roomies = users;
+          _splitWith = initialSplit;
+          _isLoadingRoomies = false;
+        });
+      }
+    } catch (e) {
+      // obsługa błędów
+      print('Group Loading Error: $e');
+      if (mounted) {
+        setState(() {
+          _groupName = 'No group found';
+          _isLoadingRoomies = false;
+          _hasGroupError = true;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Error: ${e.toString()}'),
+              backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  // dodanie nowego wydatku
+  void _addNewExpense() {
+    final amount = double.tryParse(_amountController.text);
+    final participantsIds = _splitWith.entries
+        .where((e) => e.value == 'true')
+        .map((e) => e.key)
+        .toList();
+
+    if (_descriptionController.text.isEmpty ||
+        amount == null ||
+        amount <= 0 ||
+        participantsIds.isEmpty ||
+        _userGroupId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(_userGroupId.isEmpty
+                ? 'Error: You must belong to a group to add expenses.'
+                : 'Please fill in details and select participants.'),
+            backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    final newExpense = ExpenseHistoryItem(
+      id: '',
+      description: _descriptionController.text.trim(),
+      payerId: _currentUserId,
+      amount: amount,
+      date: DateTime.now(),
+      participantsIds: participantsIds,
+      groupId: _userGroupId,
+    );
+
+    _firestoreService.addExpense(newExpense).then((_) {
+      setState(() {
+        _isNewExpenseFormVisible = false;
+        _descriptionController.clear();
+        _amountController.clear();
+        _splitWith.updateAll((key, value) => 'true');
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Expense added successfully!'),
+            backgroundColor: Colors.green),
+      );
+    }).catchError((e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Error adding expense: $e'),
+            backgroundColor: Colors.red),
+      );
+    });
+  }
+
+  // funkcja pomocnicza do wyliczenia "subtextu" na podstawie danych z firestore
+  String _getSubtext(ExpenseHistoryItem item) {
+    // znajdź imię płatnika
+    final payer = _roomies.firstWhere((user) => user['id'] == item.payerId,
+        orElse: () => {'name': 'Unknown User'});
+
+    final payerName = item.payerId == _currentUserId ? 'You' : payer['name'];
+    final splitCount = item.participantsIds.length;
+    final currencyFormat =
+        NumberFormat.currency(locale: 'pl_PL', symbol: 'PLN');
+
+    if (splitCount == 1) {
+      return '$payerName paid (not split)';
+    }
+
+    final shareAmount = item.amount / splitCount;
+    final shareText = currencyFormat.format(shareAmount);
+
+    return '$payerName paid. Split $shareText each ($splitCount people)';
   }
 
   // --- BUDOWANIE INTERFEJSU (UI) ---
@@ -94,32 +191,32 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 // TODO: Otwórz menu (Drawer)
               },
             ),
-            title: const Center(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Text(
-                    'ROOMIES',
-                    style: TextStyle(
+            title: Center(
+                child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const Text(
+                  'ROOMIES',
+                  style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: textColor,
-                    ),
                   ),
-                  Text(
-                    'Sunset Valley 8',
-                    style: TextStyle(
+                ),
+                Text(
+                  _groupName,
+                  style: const TextStyle(
                     fontSize: 14,
                     color: lightTextColor,
                     fontWeight: FontWeight.bold,
-                    ),
                   ),
-                ],
-              )
-            ),
+                ),
+              ],
+            )),
             actions: [
               IconButton(
-                icon: const Icon(Icons.notifications_outlined, color: textColor),
+                icon:
+                    const Icon(Icons.notifications_outlined, color: textColor),
                 onPressed: () {
                   // TODO: Otwórz powiadomienia
                 },
@@ -138,9 +235,9 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     child: Text(
                       'Our expenses',
                       style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: textColor,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
                       ),
                     ),
                   ),
@@ -173,13 +270,12 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   // Przełączniki "All" / "Owed" / "Lent"
                   _buildToggleButtons(),
                   const SizedBox(height: 20),
-
-                  // Lista wydatków (dynamicznie filtrowana)
-                  _buildExpensesList(),
                 ],
               ),
             ),
           ),
+          // Lista wydatków (dynamicznie filtrowana)
+          _buildExpensesList(),
         ],
       ),
     );
@@ -265,13 +361,18 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           const SizedBox(height: 10),
 
           // Lista współlokatorów (Checkbox)
-          ..._splitWith.keys.map((name) {
+          ..._roomies.map((user) {
+            final userId = user['id']!;
+            final userName = user['name']!;
+
             return CheckboxListTile(
-              title: Text(name, style: const TextStyle(color: textColor)),
-              value: _splitWith[name],
+              title: Text(userName, style: const TextStyle(color: textColor)),
+              value: _splitWith[userId] == 'true',
               onChanged: (bool? value) {
                 setState(() {
-                  _splitWith[name] = value ?? false;
+                  if (userId != _currentUserId) {
+                    _splitWith[userId] = value == true ? 'true' : 'false';
+                  }
                 });
               },
               activeColor: textColor,
@@ -286,23 +387,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () {
-                // --- LOGIKA SUBMIT ---
-                print('New Expense Submitted:');
-                print('Description: ${_descriptionController.text}');
-                print('Amount: ${_amountController.text}');
-                print('Split with: $_splitWith');
-                
-                // --- POPRAWKA 4: Ukryj formularz i wyczyść pola po wysłaniu ---
-                setState(() {
-                  _isNewExpenseFormVisible = false;
-                  _descriptionController.clear();
-                  _amountController.clear();
-                  // Resetowanie wszystkich checkboxów
-                  _splitWith.updateAll((key, value) => false);
-                });
-                // --- Koniec POPRAWKI 4 ---
-              },
+              onPressed: _addNewExpense,
               child: const Text('SUBMIT'),
             ),
           ),
@@ -310,7 +395,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       ),
     );
   }
-  
+
   /// Pomocnicza funkcja do stylizacji pól formularza (Description, Amount)
   InputDecoration _buildFormInputDecoration({required String hintText}) {
     return InputDecoration(
@@ -379,27 +464,78 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
   /// Lista wydatków (filtrowana)
   Widget _buildExpensesList() {
-    // Używamy `Column` zamiast `ListView`, aby uniknąć błędów zagnieżdżenia w `SliverList`
-    return Column(
-      children: _filteredTransactions.map((item) {
-        return _buildExpenseListItem(item);
-      }).toList(),
+    return StreamBuilder<List<ExpenseHistoryItem>>(
+      stream: _firestoreService.getExpenses(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SliverToBoxAdapter(
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (snapshot.hasError) {
+          return SliverToBoxAdapter(
+            child: Center(
+                child: Text('Error loading expenses: ${snapshot.error}',
+                    style: const TextStyle(color: Colors.red))),
+          );
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const SliverToBoxAdapter(
+              child: Center(
+                  child: Text('No expenses found!',
+                      style: TextStyle(color: textColor))));
+        }
+
+        final allTransactions = snapshot.data!;
+
+        // filtrowanie wydatków na podstawie wybranego przełącznika
+        final filteredTransactions = allTransactions.where((item) {
+          if (_selectedToggleIndex == 1) {
+            // Owed
+            return item.participantsIds.contains(_currentUserId) &&
+                item.payerId != _currentUserId;
+          }
+          if (_selectedToggleIndex == 2) {
+            // Lent
+            return item.payerId == _currentUserId &&
+                item.participantsIds.length > 1;
+          }
+          return true; // All
+        }).toList();
+
+        return SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              final item = filteredTransactions[index];
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: _buildExpenseListItem(item),
+              );
+            },
+            childCount: filteredTransactions.length,
+          ),
+        );
+      },
     );
   }
 
   /// Pojedynczy element na liście wydatków
   Widget _buildExpenseListItem(ExpenseHistoryItem item) {
     final cardBackgroundColor = accentColor;
-    
+    final currencyFormat =
+        NumberFormat.currency(locale: 'pl_PL', symbol: 'PLN');
+
     // Ustalanie koloru kwoty
-    Color amountColor;
-    if (item.type == 'lent') {
-      amountColor = Colors.green[800]!; // Pożyczyłeś (na plus)
-    } else if (item.type == 'owed') {
-      amountColor = Colors.red[800]!; // Wisisz (na minus)
-    } else {
-      amountColor = textColor; // Rozliczone (neutralne)
+    Color amountColor = textColor;
+    if (item.payerId == _currentUserId && item.participantsIds.length > 1) {
+      amountColor = Colors.green[800]!;
+    } else if (item.participantsIds.contains(_currentUserId) &&
+        item.payerId != _currentUserId) {
+      amountColor = Colors.red[800]!;
     }
+
+    // Ustalenie kwoty do wyświetlenia
+    final displayAmount = currencyFormat.format(item.amount);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -415,12 +551,9 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           // Awatar, Tytuł i Podtekst
           Row(
             children: [
-              CircleAvatar(
+              const CircleAvatar(
                 backgroundColor: primaryColor,
-                child: Text(
-                  item.description[0],
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                ),
+                child: Icon(Icons.shopping_bag, color: Colors.white, size: 20),
               ),
               const SizedBox(width: 12),
               Column(
@@ -435,7 +568,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     ),
                   ),
                   Text(
-                    item.subtext,
+                    _getSubtext(item),
                     style: const TextStyle(color: lightTextColor, fontSize: 14),
                   ),
                 ],
@@ -447,15 +580,18 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '${item.amount >= 0 ? '+' : ''}${item.amount.toStringAsFixed(2)} PLN',
+                displayAmount,
                 style: TextStyle(
                   color: amountColor,
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
                 ),
               ),
+              // formatowanie DateTime
               Text(
-                item.date,
+                item.date is DateTime
+                    ? DateFormat('dd.MM.yyyy').format(item.date as DateTime)
+                    : item.date.toString(),
                 style: const TextStyle(color: lightTextColor, fontSize: 12),
               ),
             ],
@@ -464,4 +600,4 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       ),
     );
   }
-}*/
+}

@@ -19,6 +19,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   final String _currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
   String _groupName = 'Loading...';
   String _userGroupId = '';
+  // ignore: unused_field
   bool _hasGroupError = false;
 
   int _selectedToggleIndex = 0;
@@ -28,6 +29,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   Map<String, String> _splitWith = {};
 
   List<Map<String, String>> _roomies = [];
+  // ignore: unused_field
   bool _isLoadingRoomies = true;
 
   final double _netBalance =
@@ -589,9 +591,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               ),
               // formatowanie DateTime
               Text(
-                item.date is DateTime
-                    ? DateFormat('dd.MM.yyyy').format(item.date as DateTime)
-                    : item.date.toString(),
+                DateFormat('dd.MM.yyyy').format(item.date),
                 style: const TextStyle(color: lightTextColor, fontSize: 12),
               ),
             ],

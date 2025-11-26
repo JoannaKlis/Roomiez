@@ -22,6 +22,7 @@ class _TasksScreenState extends State<TasksScreen> {
   final String _currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
   String _groupName = 'Loading...';
   String _userGroupId = '';
+  // ignore: unused_field
   bool _hasGroupError = false;
 
   int _selectedToggleIndex = 0;
@@ -688,9 +689,7 @@ class _TasksScreenState extends State<TasksScreen> {
                 ),
               ),
               Text(
-                task.dueDate is DateTime
-                    ? DateFormat('dd.MM.yyyy').format(task.dueDate as DateTime)
-                    : task.dueDate.toString(),
+                DateFormat('dd.MM.yyyy').format(task.dueDate),
                 style: const TextStyle(color: lightTextColor, fontSize: 12),
               ),
             ],

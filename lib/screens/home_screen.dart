@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../constants.dart';
-//import 'tasks_screen.dart'; 
+import 'tasks_screen.dart'; 
+import 'expenses_screen.dart';
 // import 'announcements_screen.dart'; 
 import 'profile_edit_screen.dart'; // Używamy dla ProfileEditScreen.id
 
@@ -99,13 +100,20 @@ class HomeScreen extends StatelessWidget {
               const SizedBox(height: 25), // Odstęp po sekcji powitania
 
               // --- KAFELKI NAWIGACYJNE (Add Task / Announcements) ---
-              const Row( // Dodanie const do Row
+              Row( // Dodanie const do Row
                 children: [
                   Expanded(
                     child: _SquareActionCard(
                       icon: Icons.check_circle_outline,
                       label: 'Add task',
-                      onTap: null, // Użyjemy ScaffoldMessenger bezpośrednio w onTap, nie przekazujemy null
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const TasksScreen(),
+                          ),
+                        );
+                      },
                     ),
                   ),
                   SizedBox(width: 15),
@@ -125,8 +133,13 @@ class HomeScreen extends StatelessWidget {
               const SizedBox(height: 10),
               _ExpensesCard(
                 onGoToExpenses: () {
-                    // Tutaj możesz podpiąć nawigację do expenses_screen.dart
-                },
+                  // Navigator.push(
+                  //   context,
+                  //   MaterialPageRoute(
+                  //     builder: (context) => const ExpensesScreen(),
+                  //   ),
+                  // );
+                },  
               ),
 
               const SizedBox(height: 30),
@@ -171,24 +184,25 @@ class _SquareActionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        // Obsługa nawigacji w _SquareActionCard
-        if (label == 'Add task') {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Tu bedzie tasks screen'),
-              duration: Duration(seconds: 2),
-            ),
-          );
-        } else if (label == 'Announcements') {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const AnnouncementsScreenPlaceholder()),
-          );
-        } else if (onTap != null) {
-            onTap!();
-        }
-      },
+      onTap: onTap,
+      // onTap: () {
+      //   // Obsługa nawigacji w _SquareActionCard
+      //   if (label == 'Add task') {
+      //     ScaffoldMessenger.of(context).showSnackBar(
+      //       const SnackBar(
+      //         content: Text('Tu bedzie tasks screen'),
+      //         duration: Duration(seconds: 2),
+      //       ),
+      //     );
+      //   } else if (label == 'Announcements') {
+      //     Navigator.push(
+      //       context,
+      //       MaterialPageRoute(builder: (context) => const AnnouncementsScreenPlaceholder()),
+      //     );
+      //   } else if (onTap != null) {
+      //       onTap!();
+      //   }
+      // },
       child: Container(
         height: 120,
         decoration: BoxDecoration(

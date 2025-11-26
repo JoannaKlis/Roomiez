@@ -57,3 +57,7 @@ windows/flutter/generated_plugins.cmake
 test/widget_test.dart
 *.lock
 pubspec.lock
+*.swift
+linux/flutter/generated_plugins.cmake
+linux/flutter/generated_plugin_registrant.h
+linux/flutter/generated_plugin_registrant.cc

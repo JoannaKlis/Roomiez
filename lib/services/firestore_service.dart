@@ -7,9 +7,8 @@ import 'package:roomies/utils/user_roles.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  // stała do pobierania danych dla 'default_group'
-  // w przyszłości zmienić na dynamiczne pobieranie id grupy zalogowanego użytkownika
-  static const String _defaultGroupId = 'default_group'; 
+  // dynamiczne pobieranie id grupy zalogowanego użytkownika
+  static const String defaultGroupId = 'default_group'; 
 
   Future<String> createNewGroup(String Name) async {
     try {
@@ -62,7 +61,7 @@ Future<bool> addUserToGroup(String groupId) async {
     try {
       final snapshot = await _firestore
           .collection('users')
-          .where('groupId', isEqualTo: _defaultGroupId)
+          .where('groupId', isEqualTo: defaultGroupId)
           .get();
 
       return snapshot.docs.map((doc) => {
@@ -84,7 +83,7 @@ Future<bool> addUserToGroup(String groupId) async {
   Stream<List<Task>> getTasks() {
     return _firestore
         .collection('tasks')
-        .where('groupId', isEqualTo: _defaultGroupId)
+        .where('groupId', isEqualTo: defaultGroupId)
         .orderBy('dueDate', descending: false)
         .snapshots()
         .map((snapshot) {
@@ -106,7 +105,7 @@ Future<bool> addUserToGroup(String groupId) async {
   Stream<List<ExpenseHistoryItem>> getExpenses() {
     return _firestore
         .collection('expenses')
-        .where('groupId', isEqualTo: _defaultGroupId)
+        .where('groupId', isEqualTo: defaultGroupId)
         .orderBy('date', descending: true)
         .snapshots()
         .map((snapshot) {

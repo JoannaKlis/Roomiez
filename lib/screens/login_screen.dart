@@ -5,6 +5,8 @@ import '../widgets/custom_text_field.dart';
 import 'registration_screen.dart';
 import 'package:roomies/services/auth_service.dart';
 import 'dashboard_screen.dart';
+import 'home_screen.dart';
+import '../services/firestore_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -18,6 +20,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final AuthService _authService = AuthService();
+  final FirestoreService _firestoreService = FirestoreService();
 
   // funkcja do obsługi logowania
   void _handleLogin() async {
@@ -34,6 +37,8 @@ class _LoginScreenState extends State<LoginScreen> {
     );
 
     if (errorMessage == null) {
+    final groupId = await _firestoreService.getCurrentUserGroupId();
+    final name = await _firestoreService.getGroupName(groupId);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -43,13 +48,15 @@ class _LoginScreenState extends State<LoginScreen> {
             duration: Duration(milliseconds: 500),
           ),
         );
-        Future.delayed(const Duration(milliseconds: 500), () {
+        //Future.delayed(const Duration(milliseconds: 500), () {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const DashboardScreen()),
+          MaterialPageRoute(builder: (context) => groupId != "default_group"
+          ? HomeScreen(roomName: name, groupId: groupId,)
+          : const DashboardScreen(),),
           //jeśli już ma groupId to nie pokazuj ekranu z dołączeniem/tworzeniem miejsca, jak będzie ekran 5
         );
-      });
+      //});
       }
     } else {
       // błąd logowania

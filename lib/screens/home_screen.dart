@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:roomies/services/firestore_service.dart';
 import '../constants.dart';
 import 'tasks_screen.dart';
 import 'expenses_screen.dart';
 import 'announcements_screen.dart';
 import 'profile_edit_screen.dart'; // Używamy dla ProfileEditScreen.id
+import 'navigation_screen.dart';
+import '../widgets/menu_bar.dart' as mb;
 
 class HomeScreen extends StatelessWidget {
   final String roomName;
+  final String groupId;
 
   const HomeScreen({
     super.key,
-    required this.roomName,
+    required this.roomName, required this.groupId
   });
 
   @override
@@ -22,10 +26,15 @@ class HomeScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: backgroundColor,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.menu, size: 30, color: textColor),
-          onPressed: () {},
-        ),
+leading: Builder(
+  builder: (context) => IconButton(
+    icon: const Icon(Icons.menu, size: 30, color: textColor),
+    onPressed: () {
+      Scaffold.of(context).openDrawer();
+    },
+  ),
+),
+
         title: Column(
           children: [
             const Text(
@@ -170,6 +179,7 @@ class HomeScreen extends StatelessWidget {
           ),
         ),
       ),
+      drawer: mb.MenuBar(roomName: roomName, groupId: groupId),
     );
   }
 }

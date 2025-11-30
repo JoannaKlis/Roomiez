@@ -4,7 +4,8 @@ import 'package:intl/intl.dart';
 import '../constants.dart';
 import '../models/task_model.dart';
 import '../services/firestore_service.dart';
-
+import 'navigation_screen.dart';
+import '../widgets/menu_bar.dart' as mb;
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
 
@@ -263,11 +264,13 @@ class _TasksScreenState extends State<TasksScreen> {
             floating: true,
             pinned: true,
             centerTitle: true,
-            leading: IconButton(
-              icon: const Icon(Icons.menu, color: textColor),
-              onPressed: () {
-                // TODO: Otwórz menu (Drawer)
-              },
+            leading: Builder(
+            builder: (context) => IconButton(
+            icon: const Icon(Icons.menu, color: textColor),
+            onPressed: () {
+              Scaffold.of(context).openDrawer();
+            },
+              ),
             ),
             title: Center(
                 child: Column(
@@ -354,6 +357,7 @@ class _TasksScreenState extends State<TasksScreen> {
           _buildTaskList(),
         ],
       ),
+      drawer: mb.MenuBar(roomName: _groupName, groupId: _userGroupId),
     );
   }
 

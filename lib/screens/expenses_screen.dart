@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import '../constants.dart'; // Importowanie Twoich stałych kolorów
 import '../models/expense_history_item.dart'; // Import modelu danych
 import '../services/firestore_service.dart';
+import 'navigation_screen.dart';
+import '../widgets/menu_bar.dart' as mb;
 
 class ExpensesScreen extends StatefulWidget {
   const ExpensesScreen({super.key});
@@ -187,11 +189,13 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
             elevation: 0,
             floating: true,
             pinned: true,
-            leading: IconButton(
-              icon: const Icon(Icons.menu, color: textColor),
-              onPressed: () {
-                // TODO: Otwórz menu (Drawer)
-              },
+            leading: Builder(
+            builder: (context) => IconButton(
+            icon: const Icon(Icons.menu, color: textColor),
+            onPressed: () {
+              Scaffold.of(context).openDrawer();
+            },
+              ),
             ),
             title: Center(
                 child: Column(
@@ -280,6 +284,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           _buildExpensesList(),
         ],
       ),
+      drawer: mb.MenuBar(roomName: _groupName, groupId: _userGroupId),
     );
   }
 

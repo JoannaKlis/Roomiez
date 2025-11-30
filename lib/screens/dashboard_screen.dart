@@ -32,6 +32,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         MaterialPageRoute(
           builder: (_) => HomeScreen(
             roomName: _nameController.text.trim(),
+            groupId: groupId,
           ),
         ),
       );
@@ -55,7 +56,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         context,
         MaterialPageRoute(
           builder: (_) => HomeScreen(
-            roomName: _groupIdController.text.trim(), // tymczasowo
+            roomName: _groupIdController.text.trim(), groupId: _groupIdController.text.trim(), // tymczasowo
           ),
         ),
       );
@@ -184,7 +185,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 ElevatedButton(
                                   onPressed: () {
                                     _handleCreate();
-                                    //przejście na główną
                                   },
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: primaryColor,

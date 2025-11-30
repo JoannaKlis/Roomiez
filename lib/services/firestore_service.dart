@@ -4,6 +4,7 @@ import '../models/task_model.dart';
 import '../models/expense_history_item.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:roomies/utils/user_roles.dart';
+import '../models/announcement_model.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -13,13 +14,13 @@ class FirestoreService {
     try {
       // pobieranie dokumentu z kolekcji 'groups' o podanym ID
       final groupDoc = await _firestore.collection('groups').doc(groupId).get();
-      
+
       // sprawdzenie, czy dokument istnieje i zawiera pole 'name'
       if (groupDoc.exists && groupDoc.data()!.containsKey('name')) {
         return groupDoc.data()!['name'] as String;
       }
-      
-      return 'No group name'; 
+
+      return 'No group name';
     } catch (e) {
       print('Error fetching group name: $e');
       return 'Loading error';
@@ -30,20 +31,20 @@ class FirestoreService {
   Future<String> getCurrentUserGroupId() async {
     try {
       final userId = FirebaseAuth.instance.currentUser?.uid;
-      
+
       // pobieranie dokumentu użytkownika z kolekcji 'users'
       final userDoc = await _firestore.collection('users').doc(userId).get();
-      
+
       // sprawdzenie, czy dokument istnieje i zawiera pole 'groupId'
       if (userDoc.exists && userDoc.data()!.containsKey('groupId')) {
         return userDoc.data()!['groupId'] as String;
       }
-      
+
       // Jeśli użytkownik nie ma przypisanego groupId w dokumencie
-      throw Exception('User is not assigned to any group. Please create or join one.');
-      
+      throw Exception(
+          'User is not assigned to any group. Please create or join one.');
     } catch (e) {
-      if (e is Exception) rethrow; 
+      if (e is Exception) rethrow;
       throw Exception('Error fetching user GroupID: ${e.toString()}');
     }
   }
@@ -89,7 +90,8 @@ class FirestoreService {
   }
 
   // pobieranie użytkowników z tej samej grupy
-  Future<List<Map<String, String>>> getCurrentApartmentUsers(String groupId) async {
+  Future<List<Map<String, String>>> getCurrentApartmentUsers(
+      String groupId) async {
     try {
       final groupId = await getCurrentUserGroupId();
 
@@ -188,5 +190,28 @@ class FirestoreService {
       }
       return 'An unexpected error occurred: ${e.toString()}';
     }
+  }
+
+  // ==============================
+  // ANNOUNCEMENTS
+  // ==============================
+
+  Future<void> addAnnouncement(Announcement announcement) async {
+    await _firestore.collection('announcements').add(announcement.toMap());
+  }
+
+  Stream<List<Announcement>> getAnnouncements() {
+    return Stream.fromFuture(getCurrentUserGroupId()).asyncExpand((groupId) {
+      return _firestore
+          .collection('announcements')
+          .where('groupId', isEqualTo: groupId)
+          .orderBy('createdAt', descending: true)
+          .snapshots()
+          .map((snapshot) {
+        return snapshot.docs
+            .map((doc) => Announcement.fromMap(doc.data(), doc.id))
+            .toList();
+      });
+    });
   }
 }

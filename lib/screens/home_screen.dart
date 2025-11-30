@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../constants.dart';
-import 'tasks_screen.dart'; 
+import 'tasks_screen.dart';
 import 'expenses_screen.dart';
-// import 'announcements_screen.dart'; 
+import 'announcements_screen.dart';
 import 'profile_edit_screen.dart'; // Używamy dla ProfileEditScreen.id
 
 class HomeScreen extends StatelessWidget {
@@ -17,7 +17,7 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: backgroundColor,
-      
+
       // --- APP BAR ---
       appBar: AppBar(
         backgroundColor: backgroundColor,
@@ -39,7 +39,7 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
             Text(
-              roomName, 
+              roomName,
               style: const TextStyle(
                 color: lightTextColor,
                 fontFamily: appFontFamily,
@@ -67,8 +67,10 @@ class HomeScreen extends StatelessWidget {
             children: [
               // --- Powitanie i Edycja Profilu ---
               Row(
-                mainAxisSize: MainAxisSize.min, // Ogranicza szerokość Row do zawartości
-                mainAxisAlignment: MainAxisAlignment.center, // Centruje zawartość
+                mainAxisSize:
+                    MainAxisSize.min, // Ogranicza szerokość Row do zawartości
+                mainAxisAlignment:
+                    MainAxisAlignment.center, // Centruje zawartość
                 children: [
                   // Powitanie
                   const Text(
@@ -89,10 +91,10 @@ class HomeScreen extends StatelessWidget {
                     ),
                     // Używamy minimalnego paddingu/ograniczeń dla lepszego dopasowania
                     padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                    constraints: const BoxConstraints(), 
+                    constraints: const BoxConstraints(),
                     onPressed: () {
                       // Nawigacja do ekranu edycji profilu
-                      Navigator.pushNamed(context, ProfileEditScreen.id); 
+                      Navigator.pushNamed(context, ProfileEditScreen.id);
                     },
                   ),
                 ],
@@ -100,7 +102,8 @@ class HomeScreen extends StatelessWidget {
               const SizedBox(height: 25), // Odstęp po sekcji powitania
 
               // --- KAFELKI NAWIGACYJNE (Add Task / Announcements) ---
-              Row( // Dodanie const do Row
+              Row(
+                // Dodanie const do Row
                 children: [
                   Expanded(
                     child: _SquareActionCard(
@@ -119,10 +122,16 @@ class HomeScreen extends StatelessWidget {
                   SizedBox(width: 15),
                   Expanded(
                     child: _SquareActionCard(
-                      icon: Icons.error_outline,
-                      label: 'Announcements',
-                      onTap: null, // Użyjemy Navigator.push bezpośrednio w onTap, nie przekazujemy null
-                    ),
+                        icon: Icons.error_outline,
+                        label: 'Announcements',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const AnnouncementsScreen(),
+                            ),
+                          );
+                        }),
                   ),
                 ],
               ),
@@ -139,7 +148,7 @@ class HomeScreen extends StatelessWidget {
                       builder: (context) => const ExpensesScreen(),
                     ),
                   );
-                },  
+                },
               ),
 
               const SizedBox(height: 30),
@@ -155,7 +164,7 @@ class HomeScreen extends StatelessWidget {
               const _SectionHeader(title: 'Shopping list'),
               const SizedBox(height: 10),
               const _ShoppingCard(), // To teraz jest StatefulWidget
-              
+
               const SizedBox(height: 40),
             ],
           ),
@@ -206,7 +215,7 @@ class _SquareActionCard extends StatelessWidget {
       child: Container(
         height: 120,
         decoration: BoxDecoration(
-          color: lightTextColor, 
+          color: lightTextColor,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
@@ -240,7 +249,8 @@ class _SquareActionCard extends StatelessWidget {
 class _ExpensesCard extends StatelessWidget {
   final VoidCallback onGoToExpenses;
 
-  const _ExpensesCard({super.key, required this.onGoToExpenses}); // Dodanie super.key
+  const _ExpensesCard(
+      {super.key, required this.onGoToExpenses}); // Dodanie super.key
 
   @override
   Widget build(BuildContext context) {
@@ -258,17 +268,29 @@ class _ExpensesCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: const [
-                  Text('Your balance', style: TextStyle(color: lightTextColor, fontFamily: appFontFamily, fontWeight: FontWeight.bold)),
-                  Text('+50,00 PLN', style: TextStyle(color: textColor, fontFamily: appFontFamily, fontSize: 22, fontWeight: FontWeight.w900)),
+                  Text('Your balance',
+                      style: TextStyle(
+                          color: lightTextColor,
+                          fontFamily: appFontFamily,
+                          fontWeight: FontWeight.bold)),
+                  Text('+50,00 PLN',
+                      style: TextStyle(
+                          color: textColor,
+                          fontFamily: appFontFamily,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900)),
                 ],
               ),
               ElevatedButton(
                 onPressed: onGoToExpenses,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: primaryColor,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
                 ),
-                child: const Text('Go to expenses', style: TextStyle(color: Colors.white, fontFamily: appFontFamily)),
+                child: const Text('Go to expenses',
+                    style: TextStyle(
+                        color: Colors.white, fontFamily: appFontFamily)),
               ),
             ],
           ),
@@ -293,12 +315,24 @@ class _ExpensesCard extends StatelessWidget {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(item, style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: appFontFamily, color: textColor)),
-            Text(who, style: const TextStyle(fontSize: 12, fontFamily: appFontFamily, color: lightTextColor)),
+            Text(item,
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontFamily: appFontFamily,
+                    color: textColor)),
+            Text(who,
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontFamily: appFontFamily,
+                    color: lightTextColor)),
           ],
         ),
         const Spacer(),
-        Text(cost, style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: appFontFamily, color: textColor)),
+        Text(cost,
+            style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontFamily: appFontFamily,
+                color: textColor)),
       ],
     );
   }
@@ -323,16 +357,31 @@ class _CleaningCard extends StatelessWidget {
               color: lightTextColor,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.cleaning_services, size: 28, color: textColor),
+            child:
+                const Icon(Icons.cleaning_services, size: 28, color: textColor),
           ),
           const SizedBox(width: 15),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: const [
-                Text("It's your turn tomorrow!", style: TextStyle(color: lightTextColor, fontFamily: appFontFamily, fontWeight: FontWeight.bold, fontSize: 13)),
-                Text("Kitchen Cleaning", style: TextStyle(color: textColor, fontFamily: appFontFamily, fontWeight: FontWeight.w900, fontSize: 17)),
-                Text("Next in line: Ana", style: TextStyle(color: lightTextColor, fontFamily: appFontFamily, fontSize: 12)),
+                Text("It's your turn tomorrow!",
+                    style: TextStyle(
+                        color: lightTextColor,
+                        fontFamily: appFontFamily,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13)),
+                Text("Kitchen Cleaning",
+                    style: TextStyle(
+                        color: textColor,
+                        fontFamily: appFontFamily,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 17)),
+                Text("Next in line: Ana",
+                    style: TextStyle(
+                        color: lightTextColor,
+                        fontFamily: appFontFamily,
+                        fontSize: 12)),
               ],
             ),
           )
@@ -377,7 +426,8 @@ class _ShoppingCardState extends State<_ShoppingCard> {
           // Użycie wyodrębnionego widżetu _ShoppingItem zamiast metody
           for (int i = 0; i < items.length; i++)
             _ShoppingItem(
-              key: ValueKey(items[i]['name']), // Dodanie ValueKey dla lepszej wydajności
+              key: ValueKey(
+                  items[i]['name']), // Dodanie ValueKey dla lepszej wydajności
               name: items[i]['name'],
               isPriority: items[i]['isPriority'],
               isBought: items[i]['isBought'],
@@ -394,7 +444,7 @@ class _ShoppingItem extends StatelessWidget {
   final String name;
   final bool isPriority;
   final bool isBought;
-  final VoidCallback onTap; 
+  final VoidCallback onTap;
 
   const _ShoppingItem({
     super.key,
@@ -412,9 +462,11 @@ class _ShoppingItem extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
         decoration: BoxDecoration(
-          border: isPriority ? Border.all(color: Colors.redAccent, width: 1.5) : null,
+          border: isPriority
+              ? Border.all(color: Colors.redAccent, width: 1.5)
+              : null,
           borderRadius: BorderRadius.circular(12),
-          color: isBought ? Colors.grey.withOpacity(0.1) : Colors.transparent, 
+          color: isBought ? Colors.grey.withOpacity(0.1) : Colors.transparent,
         ),
         child: Row(
           children: [
@@ -424,7 +476,7 @@ class _ShoppingItem extends StatelessWidget {
               color: isBought ? primaryColor : textColor,
             ),
             const SizedBox(width: 10),
-            
+
             // NAZWA PRODUKTU
             Text(
               name,
@@ -432,12 +484,14 @@ class _ShoppingItem extends StatelessWidget {
                 fontWeight: FontWeight.bold,
                 fontFamily: appFontFamily,
                 color: isBought ? lightTextColor : textColor,
-                decoration: isBought ? TextDecoration.lineThrough : null, // Przekreślenie
+                decoration: isBought
+                    ? TextDecoration.lineThrough
+                    : null, // Przekreślenie
               ),
             ),
-            
+
             const Spacer(),
-            
+
             // OZNACZENIE PRIORYTETU
             if (isPriority)
               const Text(
@@ -455,10 +509,10 @@ class _ShoppingItem extends StatelessWidget {
   }
 }
 
-
 class _SectionHeader extends StatelessWidget {
   final String title;
-  const _SectionHeader({super.key, required this.title}); // Dodanie const i super.key
+  const _SectionHeader(
+      {super.key, required this.title}); // Dodanie const i super.key
 
   @override
   Widget build(BuildContext context) {
@@ -479,7 +533,8 @@ class _SectionHeader extends StatelessWidget {
 
 // --- TYMCZASOWA ZAŚLEPKA DLA OGŁOSZEŃ ---
 class AnnouncementsScreenPlaceholder extends StatelessWidget {
-  const AnnouncementsScreenPlaceholder({super.key}); // Dodanie const i super.key
+  const AnnouncementsScreenPlaceholder(
+      {super.key}); // Dodanie const i super.key
 
   @override
   Widget build(BuildContext context) {
@@ -489,10 +544,12 @@ class AnnouncementsScreenPlaceholder extends StatelessWidget {
         backgroundColor: backgroundColor,
         elevation: 0,
         iconTheme: const IconThemeData(color: textColor),
-        title: const Text('Announcements', style: TextStyle(color: textColor, fontFamily: appFontFamily)),
+        title: const Text('Announcements',
+            style: TextStyle(color: textColor, fontFamily: appFontFamily)),
       ),
       body: const Center(
-        child: Text('Tu będą ogłoszenia od Landlorda! 🏠', style: TextStyle(color: textColor, fontFamily: appFontFamily)),
+        child: Text('Tu będą ogłoszenia od Landlorda! 🏠',
+            style: TextStyle(color: textColor, fontFamily: appFontFamily)),
       ),
     );
   }

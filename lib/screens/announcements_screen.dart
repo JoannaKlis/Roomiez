@@ -6,6 +6,10 @@ import '../services/firestore_service.dart';
 import '../models/announcement_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+
 class AnnouncementsScreen extends StatefulWidget {
   static const String id = 'announcements_screen';
 
@@ -26,6 +30,9 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
   bool _isLoadingHeader = true;
   bool _hasGroupError = false;
   bool _isFormVisible = false;
+
+  final ImagePicker _picker = ImagePicker();
+  List<XFile> _selectedImages = [];
 
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _bodyController = TextEditingController();
@@ -90,6 +97,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
       if (!_isFormVisible) {
         _titleController.clear();
         _bodyController.clear();
+        _selectedImages = [];
       }
     });
   }
@@ -111,18 +119,25 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
       return;
     }
 
-    final announcement = Announcement(
-      id: '',
-      title: _titleController.text.trim(),
-      body: _bodyController.text.trim(),
-      groupId: _userGroupId,
-      createdById: _creatorId,
-      createdByName: _creatorName,
-      createdAt: DateTime.now(),
-    );
-
     try {
+      // 1. Upload zdjęć (jeśli są)
+      final imageUrls = await _uploadImagesAndGetUrls();
+
+      // 2. Stwórz ogłoszenie
+      final announcement = Announcement(
+        id: '',
+        title: _titleController.text.trim(),
+        body: _bodyController.text.trim(),
+        groupId: _userGroupId,
+        createdById: _creatorId,
+        createdByName: _creatorName,
+        createdAt: DateTime.now(),
+        imageUrls: imageUrls, // NEW
+      );
+
+      // 3. Zapisz w Firestore
       await _firestoreService.addAnnouncement(announcement);
+
       if (mounted) {
         _toggleForm();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -169,6 +184,29 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                     fontFamily: appFontFamily,
                   ),
                 ),
+                const SizedBox(height: 12),
+                if (announcement.imageUrls.isNotEmpty) ...[
+                  SizedBox(
+                    height: 160,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: announcement.imageUrls.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 8),
+                      itemBuilder: (context, index) {
+                        return ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            announcement.imageUrls[index],
+                            width: 160,
+                            height: 160,
+                            fit: BoxFit.cover,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 const SizedBox(height: 16),
                 Text(
                   'Posted by ${announcement.createdByName}',
@@ -201,6 +239,44 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
         );
       },
     );
+  }
+
+  Future<void> _pickImages() async {
+    try {
+      final images = await _picker.pickMultiImage();
+      if (!mounted || images == null) return;
+
+      setState(() {
+        _selectedImages = images;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error picking images: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<List<String>> _uploadImagesAndGetUrls() async {
+    if (_selectedImages.isEmpty) return [];
+
+    final storage = FirebaseStorage.instance;
+    final List<String> urls = [];
+
+    for (int i = 0; i < _selectedImages.length; i++) {
+      final file = File(_selectedImages[i].path);
+      final ref = storage.ref().child(
+          'announcements/$_userGroupId/${DateTime.now().millisecondsSinceEpoch}_$i.jpg');
+
+      final uploadTask = await ref.putFile(file);
+      final url = await uploadTask.ref.getDownloadURL();
+      urls.add(url);
+    }
+
+    return urls;
   }
 
   Widget _buildHeaderCard() {
@@ -301,6 +377,45 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
               fontFamily: appFontFamily,
             ),
           ),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: _pickImages,
+              icon: const Icon(Icons.photo_library, color: textColor),
+              label: Text(
+                _selectedImages.isEmpty
+                    ? 'Add photos (optional)'
+                    : 'Change photos (${_selectedImages.length})',
+                style: const TextStyle(
+                  color: textColor,
+                  fontFamily: appFontFamily,
+                ),
+              ),
+            ),
+          ),
+          if (_selectedImages.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 70,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: _selectedImages.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.file(
+                      File(_selectedImages[index].path),
+                      width: 70,
+                      height: 70,
+                      fit: BoxFit.cover,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,

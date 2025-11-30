@@ -1,10 +1,10 @@
 name: roomies
 description: A roommate management application
-publish_to: 'none'
+publish_to: "none"
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.1.0 <4.0.0'
+  sdk: ">=3.1.0 <4.0.0"
 
 dependencies:
   flutter:
@@ -15,6 +15,8 @@ dependencies:
   cloud_firestore: ^6.1.0
   uuid: ^4.4.2
   intl: ^0.20.2
+  firebase_storage: 13.0.4
+  image_picker: ^1.0.0
 
 dev_dependencies:
   flutter_test:
@@ -23,8 +25,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  
+
   fonts:
-    - family: Baloo Bhai   # Ta nazwa musi być IDENTYCZNA jak w constants.dart
+    - family: Baloo Bhai # Ta nazwa musi być IDENTYCZNA jak w constants.dart
       fonts:
         - asset: assets/fonts/Baloo Bhai Regular 400.ttf # Tu musi być dokładna nazwa pliku który wrzuciłaś

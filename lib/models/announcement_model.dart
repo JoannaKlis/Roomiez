@@ -8,6 +8,7 @@ class Announcement {
   final String createdById;
   final String createdByName;
   final DateTime createdAt;
+  final List<String> imageUrls;
 
   Announcement({
     required this.id,
@@ -17,6 +18,7 @@ class Announcement {
     required this.createdById,
     required this.createdByName,
     required this.createdAt,
+    this.imageUrls = const [],
   });
 
   factory Announcement.fromMap(Map<String, dynamic> data, String documentId) {
@@ -28,6 +30,9 @@ class Announcement {
       createdById: data['createdById'] as String,
       createdByName: data['createdByName'] as String,
       createdAt: (data['createdAt'] as Timestamp).toDate(),
+      imageUrls: (data['imageUrls'] as List<dynamic>? ?? [])
+          .map((e) => e as String)
+          .toList(),
     );
   }
 
@@ -39,6 +44,7 @@ class Announcement {
       'createdById': createdById,
       'createdByName': createdByName,
       'createdAt': createdAt,
+      'imageUrls': imageUrls,
     };
   }
 }

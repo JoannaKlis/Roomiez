@@ -9,6 +9,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_storage/firebase_storage.dart' show SettableMetadata;
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:typed_data';
 
 class AnnouncementsScreen extends StatefulWidget {
   static const String id = 'announcements_screen';
@@ -33,6 +36,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
 
   final ImagePicker _picker = ImagePicker();
   List<XFile> _selectedImages = [];
+  List<Uint8List> _selectedImageBytes = []; // for web previews
 
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _bodyController = TextEditingController();
@@ -98,6 +102,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
         _titleController.clear();
         _bodyController.clear();
         _selectedImages = [];
+        _selectedImageBytes = [];
       }
     });
   }
@@ -246,14 +251,31 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
       final images = await _picker.pickMultiImage();
       if (!mounted || images == null) return;
 
-      setState(() {
-        _selectedImages = images;
-      });
-    } catch (e) {
+      if (kIsWeb) {
+        // On web: read bytes for preview & upload
+        final bytesList = <Uint8List>[];
+        for (final img in images) {
+          bytesList.add(await img.readAsBytes());
+        }
+
+        setState(() {
+          _selectedImages = images;
+          _selectedImageBytes = bytesList;
+        });
+      } else {
+        // On mobile: we can use File(path)
+        setState(() {
+          _selectedImages = images;
+          _selectedImageBytes = [];
+        });
+      }
+    } catch (e, st) {
+      debugPrint('Error adding announcement: $e');
+      debugPrint('Stack trace: $st');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error picking images: $e'),
+          content: Text('Error adding announcement: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -267,12 +289,27 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
     final List<String> urls = [];
 
     for (int i = 0; i < _selectedImages.length; i++) {
-      final file = File(_selectedImages[i].path);
       final ref = storage.ref().child(
-          'announcements/$_userGroupId/${DateTime.now().millisecondsSinceEpoch}_$i.jpg');
+            'announcements/$_userGroupId/${DateTime.now().millisecondsSinceEpoch}_$i.jpg',
+          );
 
-      final uploadTask = await ref.putFile(file);
-      final url = await uploadTask.ref.getDownloadURL();
+      UploadTask uploadTask;
+
+      if (kIsWeb) {
+        // Web: upload bytes
+        final data = _selectedImageBytes[i];
+        uploadTask = ref.putData(
+          data,
+          SettableMetadata(contentType: 'image/jpeg'),
+        );
+      } else {
+        // Mobile/desktop: upload a File
+        final file = File(_selectedImages[i].path);
+        uploadTask = ref.putFile(file);
+      }
+
+      final snapshot = await uploadTask;
+      final url = await snapshot.ref.getDownloadURL();
       urls.add(url);
     }
 
@@ -405,12 +442,19 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                 itemBuilder: (context, index) {
                   return ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: Image.file(
-                      File(_selectedImages[index].path),
-                      width: 70,
-                      height: 70,
-                      fit: BoxFit.cover,
-                    ),
+                    child: kIsWeb
+                        ? Image.memory(
+                            _selectedImageBytes[index],
+                            width: 70,
+                            height: 70,
+                            fit: BoxFit.cover,
+                          )
+                        : Image.file(
+                            File(_selectedImages[index].path),
+                            width: 70,
+                            height: 70,
+                            fit: BoxFit.cover,
+                          ),
                   );
                 },
               ),

@@ -4,9 +4,9 @@ import '../constants.dart';
 import 'tasks_screen.dart';
 import 'expenses_screen.dart';
 import 'announcements_screen.dart';
-import 'profile_edit_screen.dart'; // Używamy dla ProfileEditScreen.id
-import 'navigation_screen.dart';
-import '../widgets/menu_bar.dart' as mb;
+import 'profile_edit_screen.dart';
+// import 'navigation_screen.dart'; // To jest zbędne, jeśli używamy menu_bar.dart
+import '../widgets/menu_bar.dart'; // Importujemy bez aliasu, jeśli klasa jest unikalna
 
 class HomeScreen extends StatelessWidget {
   final String roomName;
@@ -14,54 +14,58 @@ class HomeScreen extends StatelessWidget {
 
   const HomeScreen({
     super.key,
-    required this.roomName, required this.groupId
+    required this.roomName,
+    required this.groupId,
   });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: backgroundColor, // Czysta biel
 
       // --- APP BAR ---
       appBar: AppBar(
         backgroundColor: backgroundColor,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
-leading: Builder(
-  builder: (context) => IconButton(
-    icon: const Icon(Icons.menu, size: 30, color: textColor),
-    onPressed: () {
-      Scaffold.of(context).openDrawer();
-    },
-  ),
-),
-
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu_rounded, size: 28, color: textColor),
+            onPressed: () {
+              Scaffold.of(context).openDrawer();
+            },
+          ),
+        ),
         title: Column(
           children: [
             const Text(
-              'ROOMIEZ',
+              'ROOMIES',
               style: TextStyle(
-                color: textColor,
-                fontFamily: appFontFamily,
+                color: primaryColor,
+                fontFamily: 'StackSansNotch', // Twoja czcionka firmowa
                 fontWeight: FontWeight.w900,
-                letterSpacing: 1.2,
-                fontSize: 22,
+                letterSpacing: 0.5,
+                fontSize: 20,
               ),
             ),
-            Text(
-              roomName,
-              style: const TextStyle(
-                color: lightTextColor,
-                fontFamily: appFontFamily,
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
+            if (roomName.isNotEmpty)
+              Text(
+                roomName.toUpperCase(),
+                style: const TextStyle(
+                  color: lightTextColor,
+                  fontFamily: appFontFamily,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.0,
+                ),
               ),
-            ),
           ],
         ),
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications, size: 30, color: textColor),
+            icon: const Icon(Icons.notifications_none_rounded,
+                size: 28, color: textColor),
             onPressed: () {},
           ),
         ],
@@ -76,47 +80,47 @@ leading: Builder(
             children: [
               // --- Powitanie i Edycja Profilu ---
               Row(
-                mainAxisSize:
-                    MainAxisSize.min, // Ogranicza szerokość Row do zawartości
-                mainAxisAlignment:
-                    MainAxisAlignment.center, // Centruje zawartość
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Powitanie
                   const Text(
                     'Hello, Jack!',
                     style: TextStyle(
-                      fontSize: 26,
+                      fontSize: 28,
                       fontFamily: appFontFamily,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w900, // Gruby Inter
                       color: textColor,
+                      letterSpacing: -0.5,
                     ),
                   ),
-                  // Ikonka edycji profilu
-                  IconButton(
-                    icon: const Icon(
-                      Icons.edit, // Ikonka ołówka/edytowania
-                      color: lightTextColor, // Używamy jaśniejszego koloru
-                      size: 26,
-                    ),
-                    // Używamy minimalnego paddingu/ograniczeń dla lepszego dopasowania
-                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                    constraints: const BoxConstraints(),
-                    onPressed: () {
-                      // Nawigacja do ekranu edycji profilu
+                  const SizedBox(width: 8),
+                  InkWell(
+                    onTap: () {
                       Navigator.pushNamed(context, ProfileEditScreen.id);
                     },
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: surfaceColor,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.edit_rounded,
+                        color: primaryColor,
+                        size: 18,
+                      ),
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 25), // Odstęp po sekcji powitania
+              const SizedBox(height: 30),
 
-              // --- KAFELKI NAWIGACYJNE (Add Task / Announcements) ---
+              // --- KAFELKI NAWIGACYJNE (Modern Buttons) ---
               Row(
-                // Dodanie const do Row
                 children: [
                   Expanded(
                     child: _SquareActionCard(
-                      icon: Icons.check_circle_outline,
+                      icon: Icons.check_circle_outline_rounded,
                       label: 'Add task',
                       onTap: () {
                         Navigator.push(
@@ -128,19 +132,20 @@ leading: Builder(
                       },
                     ),
                   ),
-                  SizedBox(width: 15),
+                  const SizedBox(width: 16),
                   Expanded(
                     child: _SquareActionCard(
-                        icon: Icons.error_outline,
-                        label: 'Announcements',
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const AnnouncementsScreen(),
-                            ),
-                          );
-                        }),
+                      icon: Icons.notifications_active_outlined,
+                      label: 'Announcements',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const AnnouncementsScreen(),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ],
               ),
@@ -148,7 +153,7 @@ leading: Builder(
 
               // --- SEKCJA: WYDATKI ---
               const _SectionHeader(title: 'Recent expenses'),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               _ExpensesCard(
                 onGoToExpenses: () {
                   Navigator.push(
@@ -164,73 +169,57 @@ leading: Builder(
 
               // --- SEKCJA: GRAFIK ---
               const _SectionHeader(title: 'Cleaning schedule'),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               const _CleaningCard(),
 
               const SizedBox(height: 30),
 
-              // --- SEKCJA: LISTA ZAKUPÓW (TERAZ INTERAKTYWNA) ---
+              // --- SEKCJA: LISTA ZAKUPÓW ---
               const _SectionHeader(title: 'Shopping list'),
-              const SizedBox(height: 10),
-              const _ShoppingCard(), // To teraz jest StatefulWidget
+              const SizedBox(height: 12),
+              const _ShoppingCard(),
 
               const SizedBox(height: 40),
             ],
           ),
         ),
       ),
-      drawer: mb.MenuBar(roomName: roomName, groupId: groupId),
+      // POPRAWIONE: Używamy nazwy klasy CustomDrawer zdefiniowanej w menu_bar.dart
+      drawer: CustomDrawer(roomName: roomName, groupId: groupId),
     );
   }
 }
 
 // ==========================================
-// WIDŻETY POMOCNICZE
+// WIDŻETY POMOCNICZE (STYLES MODERN / CLEAN UI)
 // ==========================================
 
 class _SquareActionCard extends StatelessWidget {
   final IconData icon;
   final String label;
-  final VoidCallback? onTap; // Dodajemy ? aby mogło być null
+  final VoidCallback? onTap;
 
   const _SquareActionCard({
-    super.key, // Dodajemy super.key
+    super.key,
     required this.icon,
     required this.label,
-    this.onTap, // onTap jest teraz opcjonalny
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      // onTap: () {
-      //   // Obsługa nawigacji w _SquareActionCard
-      //   if (label == 'Add task') {
-      //     ScaffoldMessenger.of(context).showSnackBar(
-      //       const SnackBar(
-      //         content: Text('Tu bedzie tasks screen'),
-      //         duration: Duration(seconds: 2),
-      //       ),
-      //     );
-      //   } else if (label == 'Announcements') {
-      //     Navigator.push(
-      //       context,
-      //       MaterialPageRoute(builder: (context) => const AnnouncementsScreenPlaceholder()),
-      //     );
-      //   } else if (onTap != null) {
-      //       onTap!();
-      //   }
-      // },
       child: Container(
-        height: 120,
+        height: 110,
         decoration: BoxDecoration(
-          color: lightTextColor,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: borderColor), // Delikatna ramka
           boxShadow: [
             BoxShadow(
-              color: textColor.withOpacity(0.1),
-              blurRadius: 8,
+              color: textColor.withOpacity(0.03),
+              blurRadius: 10,
               offset: const Offset(0, 4),
             ),
           ],
@@ -238,15 +227,22 @@ class _SquareActionCard extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 45, color: textColor),
-            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: primaryColor.withOpacity(0.1), // Jasne tło pod ikoną
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 32, color: primaryColor),
+            ),
+            const SizedBox(height: 12),
             Text(
               label,
               style: const TextStyle(
                 color: textColor,
                 fontFamily: appFontFamily,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
               ),
             ),
           ],
@@ -259,16 +255,23 @@ class _SquareActionCard extends StatelessWidget {
 class _ExpensesCard extends StatelessWidget {
   final VoidCallback onGoToExpenses;
 
-  const _ExpensesCard(
-      {super.key, required this.onGoToExpenses}); // Dodanie super.key
+  const _ExpensesCard({super.key, required this.onGoToExpenses});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: accentColor,
-        borderRadius: BorderRadius.circular(20),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: textColor.withOpacity(0.03),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -282,32 +285,40 @@ class _ExpensesCard extends StatelessWidget {
                       style: TextStyle(
                           color: lightTextColor,
                           fontFamily: appFontFamily,
-                          fontWeight: FontWeight.bold)),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600)),
+                  SizedBox(height: 4),
                   Text('+50,00 PLN',
                       style: TextStyle(
                           color: textColor,
                           fontFamily: appFontFamily,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w900)),
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5)),
                 ],
               ),
               ElevatedButton(
                 onPressed: onGoToExpenses,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryColor,
+                  backgroundColor: textColor, // Ciemny przycisk dla kontrastu
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
+                      borderRadius: BorderRadius.circular(12)),
                 ),
-                child: const Text('Go to expenses',
+                child: const Text('See details',
                     style: TextStyle(
                         color: Colors.white, fontFamily: appFontFamily)),
               ),
             ],
           ),
-          const Divider(color: lightTextColor, thickness: 1, height: 24),
-          _expenseRow('Bread', 'Martin', '5,50 PLN', Icons.shopping_cart),
-          const SizedBox(height: 12),
-          _expenseRow('Rent', 'Ana', '600 PLN', Icons.receipt),
+          const SizedBox(height: 20),
+          _expenseRow('Bread', 'Martin', '5,50 PLN', Icons.shopping_cart_outlined),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12.0),
+            child: Divider(color: borderColor, height: 1),
+          ),
+          _expenseRow('Rent', 'Ana', '600 PLN', Icons.receipt_long_outlined),
         ],
       ),
     );
@@ -316,12 +327,15 @@ class _ExpensesCard extends StatelessWidget {
   Widget _expenseRow(String item, String who, String cost, IconData icon) {
     return Row(
       children: [
-        CircleAvatar(
-          backgroundColor: lightTextColor,
-          radius: 18,
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: surfaceColor,
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: Icon(icon, color: textColor, size: 20),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 15),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -329,6 +343,7 @@ class _ExpensesCard extends StatelessWidget {
                 style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontFamily: appFontFamily,
+                    fontSize: 15,
                     color: textColor)),
             Text(who,
                 style: const TextStyle(
@@ -342,6 +357,7 @@ class _ExpensesCard extends StatelessWidget {
             style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontFamily: appFontFamily,
+                fontSize: 15,
                 color: textColor)),
       ],
     );
@@ -349,45 +365,48 @@ class _ExpensesCard extends StatelessWidget {
 }
 
 class _CleaningCard extends StatelessWidget {
-  const _CleaningCard({super.key}); // Dodanie const i super.key
+  const _CleaningCard({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: accentColor,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: borderColor),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: lightTextColor,
-              borderRadius: BorderRadius.circular(12),
+              color: primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(14),
             ),
-            child:
-                const Icon(Icons.cleaning_services, size: 28, color: textColor),
+            child: const Icon(Icons.cleaning_services_outlined,
+                size: 28, color: primaryColor),
           ),
           const SizedBox(width: 15),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: const [
-                Text("It's your turn tomorrow!",
+                Text("TOMORROW",
                     style: TextStyle(
-                        color: lightTextColor,
+                        color: primaryColor,
                         fontFamily: appFontFamily,
                         fontWeight: FontWeight.bold,
-                        fontSize: 13)),
+                        fontSize: 10,
+                        letterSpacing: 1.0)),
+                SizedBox(height: 2),
                 Text("Kitchen Cleaning",
                     style: TextStyle(
                         color: textColor,
                         fontFamily: appFontFamily,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 17)),
-                Text("Next in line: Ana",
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16)),
+                Text("Next: Ana (Bathroom)",
                     style: TextStyle(
                         color: lightTextColor,
                         fontFamily: appFontFamily,
@@ -403,14 +422,13 @@ class _CleaningCard extends StatelessWidget {
 
 // --- INTERAKTYWNA LISTA ZAKUPÓW ---
 class _ShoppingCard extends StatefulWidget {
-  const _ShoppingCard({super.key}); // Dodanie const i super.key
+  const _ShoppingCard({super.key});
 
   @override
   State<_ShoppingCard> createState() => _ShoppingCardState();
 }
 
 class _ShoppingCardState extends State<_ShoppingCard> {
-  // Prosta lista, żeby symulować dane
   List<Map<String, dynamic>> items = [
     {'name': 'Toilet paper', 'isPriority': true, 'isBought': false},
     {'name': 'Milk', 'isPriority': false, 'isBought': false},
@@ -426,18 +444,17 @@ class _ShoppingCardState extends State<_ShoppingCard> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(8), // Mniejszy padding kontenera
       decoration: BoxDecoration(
-        color: accentColor,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: borderColor),
       ),
       child: Column(
         children: [
-          // Użycie wyodrębnionego widżetu _ShoppingItem zamiast metody
           for (int i = 0; i < items.length; i++)
             _ShoppingItem(
-              key: ValueKey(
-                  items[i]['name']), // Dodanie ValueKey dla lepszej wydajności
+              key: ValueKey(items[i]['name']),
               name: items[i]['name'],
               isPriority: items[i]['isPriority'],
               isBought: items[i]['isBought'],
@@ -449,7 +466,6 @@ class _ShoppingCardState extends State<_ShoppingCard> {
   }
 }
 
-// NOWY WIDŻET: Wyodrębnienie logiki wizualnej pojedynczego elementu listy zakupów
 class _ShoppingItem extends StatelessWidget {
   final String name;
   final bool isPriority;
@@ -467,49 +483,53 @@ class _ShoppingItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap, // Kliknięcie gdziekolwiek w wiersz
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        margin: const EdgeInsets.only(bottom: 4), // Mniejszy odstęp
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
-          border: isPriority
-              ? Border.all(color: Colors.redAccent, width: 1.5)
-              : null,
+          // Subtelne tło dla zrobionych zakupów
+          color: isBought ? surfaceColor.withOpacity(0.5) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
-          color: isBought ? Colors.grey.withOpacity(0.1) : Colors.transparent,
         ),
         child: Row(
           children: [
-            // IKONKA: Ptaszek lub puste kółko
             Icon(
-              isBought ? Icons.check_circle : Icons.radio_button_unchecked,
-              color: isBought ? primaryColor : textColor,
+              isBought
+                  ? Icons.check_circle_rounded
+                  : Icons.radio_button_unchecked_rounded,
+              color: isBought ? primaryColor : borderColor, // Szary jak nieaktywny
+              size: 24,
             ),
-            const SizedBox(width: 10),
-
-            // NAZWA PRODUKTU
-            Text(
-              name,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontFamily: appFontFamily,
-                color: isBought ? lightTextColor : textColor,
-                decoration: isBought
-                    ? TextDecoration.lineThrough
-                    : null, // Przekreślenie
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                name,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontFamily: appFontFamily,
+                  color: isBought ? lightTextColor : textColor,
+                  decoration: isBought ? TextDecoration.lineThrough : null,
+                  decorationColor: lightTextColor,
+                ),
               ),
             ),
-
-            const Spacer(),
-
-            // OZNACZENIE PRIORYTETU
-            if (isPriority)
-              const Text(
-                'Priority',
-                style: TextStyle(
-                  color: Colors.redAccent,
-                  fontFamily: appFontFamily,
-                  fontWeight: FontWeight.bold,
+            if (isPriority && !isBought)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.redAccent.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'Priority',
+                  style: TextStyle(
+                    color: Colors.redAccent,
+                    fontFamily: appFontFamily,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
           ],
@@ -521,8 +541,7 @@ class _ShoppingItem extends StatelessWidget {
 
 class _SectionHeader extends StatelessWidget {
   final String title;
-  const _SectionHeader(
-      {super.key, required this.title}); // Dodanie const i super.key
+  const _SectionHeader({super.key, required this.title});
 
   @override
   Widget build(BuildContext context) {
@@ -533,33 +552,10 @@ class _SectionHeader extends StatelessWidget {
         style: const TextStyle(
           color: textColor,
           fontFamily: appFontFamily,
-          fontSize: 19,
+          fontSize: 18,
           fontWeight: FontWeight.w800,
+          letterSpacing: -0.5,
         ),
-      ),
-    );
-  }
-}
-
-// --- TYMCZASOWA ZAŚLEPKA DLA OGŁOSZEŃ ---
-class AnnouncementsScreenPlaceholder extends StatelessWidget {
-  const AnnouncementsScreenPlaceholder(
-      {super.key}); // Dodanie const i super.key
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      appBar: AppBar(
-        backgroundColor: backgroundColor,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: textColor),
-        title: const Text('Announcements',
-            style: TextStyle(color: textColor, fontFamily: appFontFamily)),
-      ),
-      body: const Center(
-        child: Text('Tu będą ogłoszenia od Landlorda! 🏠',
-            style: TextStyle(color: textColor, fontFamily: appFontFamily)),
       ),
     );
   }

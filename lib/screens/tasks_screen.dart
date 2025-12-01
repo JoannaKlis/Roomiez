@@ -357,7 +357,7 @@ class _TasksScreenState extends State<TasksScreen> {
           _buildTaskList(),
         ],
       ),
-      drawer: mb.MenuBar(roomName: _groupName, groupId: _userGroupId),
+      drawer: mb.CustomDrawer(roomName: _groupName, groupId: _userGroupId),
     );
   }
 

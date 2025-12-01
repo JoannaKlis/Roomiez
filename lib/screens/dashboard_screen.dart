@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../constants.dart';
-import '../widgets/custom_text_field.dart';
 import '../services/firestore_service.dart';
 import 'home_screen.dart';
 
@@ -56,7 +55,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         context,
         MaterialPageRoute(
           builder: (_) => HomeScreen(
-            roomName: _groupIdController.text.trim(), groupId: _groupIdController.text.trim(), // tymczasowo
+            roomName: _groupIdController.text.trim(),
+            groupId: _groupIdController.text.trim(), // tymczasowo
           ),
         ),
       );
@@ -88,191 +88,239 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: backgroundColor,
-      body: CustomScrollView(
-        slivers: <Widget>[
-          SliverAppBar(
-            backgroundColor: backgroundColor,
-            elevation: 0,
-            floating: true,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: textColor),
-              onPressed: () => Navigator.pop(context),
+      body: SafeArea(
+        child: CustomScrollView(
+          slivers: <Widget>[
+            // Pasek nawigacji (tylko strzałka powrotu, czysty styl)
+            SliverAppBar(
+              backgroundColor: backgroundColor,
+              elevation: 0,
+              floating: true,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                    color: textColor),
+                onPressed: () => Navigator.pop(context),
+              ),
             ),
-          ),
-          SliverList(
-            delegate: SliverChildListDelegate(
-              [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 30.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: <Widget>[
-                      // Logo i Tytuł
-                      const Center(
-                        child: Column(
-                          children: [
-                            Icon(Icons.house, size: 80.0, color: textColor),
-                            SizedBox(height: 10),
-                            Text('ROOMIES',
-                                style: TextStyle(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.bold,
-                                    color: textColor)),
-                            SizedBox(height: 5),
-                            Text('Hello! Let\'s get started',
-                                style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: textColor)),
-                            SizedBox(height: 5),
-                            Text('Manage your home in one place.',
-                                style: TextStyle(
-                                    fontSize: 14, color: lightTextColor)),
-                            SizedBox(height: 40),
-                          ],
-                        ),
-                      ),
-                      Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 450),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: accentColor,
-                              //border: Border.all(color: accentColor, width: 2),
-                              borderRadius: BorderRadius.circular(12),
+
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate(
+                  [
+                    const SizedBox(height: 10),
+
+                    // --- SEKCJA NAGŁÓWKA ---
+                    Center(
+                      child: Column(
+                        children: [
+                          // Logo
+                          Image.asset(
+                            'assets/images/logo_roomies.png',
+                            width: 80,
+                            height: 80,
+                          ),
+                          // Napis ROOMIES
+                          const Text(
+                            'ROOMIES',
+                            style: TextStyle(
+                              fontFamily: 'StackSansNotch',
+                              fontSize: 24,
+                              fontWeight: FontWeight.w900,
+                              color: primaryColor,
+                              letterSpacing: 0.5,
                             ),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 15, vertical: 10),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Row(
+                          ),
+                          const SizedBox(height: 30),
+
+                          // Powitanie - WYŚRODKOWANE
+                          const Text(
+                            "Hello! Let's get started",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: textColor,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Manage your home in one place.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: lightTextColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 40),
+
+                    // --- KARTA: CREATE NEW PLACE ---
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white, // Białe tło karty
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: borderColor), // Delikatna ramka
+                        boxShadow: [
+                          BoxShadow(
+                            color: textColor.withOpacity(0.05), // Subtelny cień
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: primaryColor.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(Icons.add_home_rounded,
+                                    size: 32, color: primaryColor),
+                              ),
+                              const SizedBox(width: 15),
+                              const Expanded(
+                                child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Icon(Icons.house,
-                                        size: 60, color: textColor),
-                                    SizedBox(width: 15),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Create a new place',
-                                            style: TextStyle(
-                                                fontSize: 20,
-                                                fontWeight: FontWeight.bold,
-                                                color: textColor),
-                                          ),
-                                          SizedBox(height: 5),
-                                          Text(
-                                            'You will be an admin and invite others.',
-                                            style: TextStyle(
-                                                fontSize: 14,
-                                                color: lightTextColor),
-                                          ),
-                                        ],
+                                    Text(
+                                      'Create a new place',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: textColor,
+                                      ),
+                                    ),
+                                    SizedBox(height: 2),
+                                    Text(
+                                      'You will be an admin.',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: lightTextColor,
                                       ),
                                     ),
                                   ],
                                 ),
-                                CustomTextField(
-                                  controller: _nameController,
-                                  label: '',
-                                  hint: 'Enter the name of your place',
-                                ),
-                                const SizedBox(height: 10),
-                                ElevatedButton(
-                                  onPressed: () {
-                                    _handleCreate();
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: primaryColor,
-                                    minimumSize: const Size.fromHeight(50),
-                                  ),
-                                  child: const Text('Create'),
-                                ),
-                              ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          TextField(
+                            controller: _nameController,
+                            decoration: const InputDecoration(
+                              hintText: 'Enter the name of your place',
+                              prefixIcon: Icon(Icons.home_outlined,
+                                  color: lightTextColor),
                             ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 30),
-                      Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 450),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: accentColor,
-                              //border: Border.all(color: accentColor, width: 2),
-                              borderRadius: BorderRadius.circular(12),
+                          const SizedBox(height: 15),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: _handleCreate,
+                              child: const Text('Create'),
                             ),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 15, vertical: 10),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment
-                                  .start, //wyrównanie do lewej
-                              children: [
-                                const Row(
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 30),
+
+                    // --- KARTA: JOIN EXISTING PLACE ---
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: borderColor),
+                        boxShadow: [
+                          BoxShadow(
+                            color: textColor.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: primaryColor.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(Icons.group_add_rounded,
+                                    size: 32, color: primaryColor),
+                              ),
+                              const SizedBox(width: 15),
+                              const Expanded(
+                                child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Icon(Icons.house,
-                                        size: 60, color: textColor),
-                                    SizedBox(width: 15),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Join an existing place',
-                                            style: TextStyle(
-                                                fontSize: 20,
-                                                fontWeight: FontWeight.bold,
-                                                color: textColor),
-                                          ),
-                                          SizedBox(height: 5),
-                                          Text(
-                                            'Use an invite code from the admin',
-                                            style: TextStyle(
-                                                fontSize: 14,
-                                                color: lightTextColor),
-                                          ),
-                                        ],
+                                    Text(
+                                      'Join an existing place',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: textColor,
+                                      ),
+                                    ),
+                                    SizedBox(height: 2),
+                                    Text(
+                                      'Use an invite code.',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: lightTextColor,
                                       ),
                                     ),
                                   ],
                                 ),
-                                CustomTextField(
-                                  controller: _groupIdController,
-                                  label: '',
-                                  hint: 'Enter an invite code',
-                                ),
-                                const SizedBox(height: 10),
-                                ElevatedButton(
-                                  onPressed: () {
-                                    _handleJoin();
-                                    //przejście na główną
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: primaryColor,
-                                    minimumSize: const Size.fromHeight(50),
-                                  ),
-                                  child: const Text('Join'),
-                                ),
-                              ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          TextField(
+                            controller: _groupIdController,
+                            decoration: const InputDecoration(
+                              hintText: 'Enter an invite code',
+                              prefixIcon:
+                                  Icon(Icons.key_outlined, color: lightTextColor),
                             ),
                           ),
-                        ),
+                          const SizedBox(height: 15),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton(
+                              // Używamy OutlinedButton dla drugiej akcji
+                              onPressed: _handleJoin,
+                              child: const Text('Join'),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 100),
-                    ],
-                  ),
+                    ),
+
+                    const SizedBox(height: 50),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

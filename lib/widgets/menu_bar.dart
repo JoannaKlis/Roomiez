@@ -1,137 +1,281 @@
 import 'package:flutter/material.dart';
-import 'package:roomies/screens/home_screen.dart';
+import 'package:flutter/services.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../constants.dart';
+// Importujemy ekrany
 import '../screens/tasks_screen.dart';
 import '../screens/expenses_screen.dart';
-import '../constants.dart';
+import '../screens/login_screen.dart';
 
-class MenuBar extends StatelessWidget {
-  final String roomName;
+class CustomDrawer extends StatelessWidget {
   final String groupId;
+  final String roomName;
+  // ZMIANA: Usunąłem 'required' i dałem domyślną pustą wartość.
+  // Dzięki temu stare pliki nie wyrzucą błędu.
+  final String currentRoute; 
 
-  const MenuBar({
+  const CustomDrawer({
     super.key,
-    required this.roomName,
     required this.groupId,
+    required this.roomName,
+    this.currentRoute = '', // <--- NAPRAWIONE: Parametr opcjonalny
   });
+
+  void _copyToClipboard(BuildContext context) {
+    Clipboard.setData(ClipboardData(text: groupId));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Invite code copied!'),
+        backgroundColor: primaryColor,
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 1),
+      ),
+    );
+  }
+
+  void _signOut(BuildContext context) async {
+    await FirebaseAuth.instance.signOut();
+    if (context.mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (Route<dynamic> route) => false,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Drawer(
-      child: Container(
-        color: backgroundColor,
-        child: ListView(
-          padding: EdgeInsets.zero,
+      backgroundColor: backgroundColor,
+      surfaceTintColor: Colors.transparent,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.zero,
+      ),
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 16),
-              color: backgroundColor,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => HomeScreen(roomName: roomName, groupId: groupId,),
-                        ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: backgroundColor,
-                      minimumSize: const Size.fromHeight(50),
-                    ),
-                    child: const Text(
-                      'ROOMIEZ',
+            // --- NAGŁÓWEK (Bez logo, wyśrodkowany) ---
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 40, 24, 20),
+              child: SizedBox(
+                width: double.infinity, // Rozciąga kontener na całą szerokość
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center, // Centruje w poziomie
+                  children: [
+                    // Logo usunięte
+                    const Text(
+                      'ROOMIES',
                       style: TextStyle(
-                        color: textColor,
-                        fontFamily: appFontFamily,
+                        fontFamily: 'StackSansNotch',
+                        fontSize: 22,
                         fontWeight: FontWeight.w900,
-                        letterSpacing: 1.2,
-                        fontSize: 32,
+                        color: primaryColor,
+                        letterSpacing: 0.5,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    roomName,
-                    style: const TextStyle(
+                    const SizedBox(height: 4),
+                    Text(
+                      roomName.isNotEmpty ? roomName : 'My Place',
+                      style: const TextStyle(
+                        fontFamily: appFontFamily,
+                        fontSize: 14,
+                        color: lightTextColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            
+            // --- INVITE CODE ---
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: surfaceColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: borderColor),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'INVITE CODE',
+                    style: TextStyle(
+                      fontSize: 10,
                       color: lightTextColor,
-                      fontFamily: appFontFamily,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.0,
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    "Invite code: $groupId",
-                    style: const TextStyle(
-                      color: lightTextColor,
-                      fontFamily: appFontFamily,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          groupId,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: textColor,
+                            fontFamily: 'Monospace',
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      InkWell(
+                        onTap: () => _copyToClipboard(context),
+                        borderRadius: BorderRadius.circular(8),
+                        child: const Padding(
+                          padding: EdgeInsets.all(6.0),
+                          child: Icon(Icons.copy_rounded,
+                              size: 18, color: primaryColor),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-
-            const Divider(color: textColor, height: 1),
-
-            _drawerItem(context, title: "Our expenses", onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const ExpensesScreen()));
-            }),
-            _drawerItem(context, title: "Tasks", onTap: () {
-              Navigator.pop(context);
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const TasksScreen()));
-            }),
-            _drawerItem(context, title: "Shopping list", onTap: () {
-              // TODO: implement shopping list screen
-            }),
-            _drawerItem(context, title: "See members", onTap: () {
-              // TODO: implement members screen
-            }),
-            _drawerItem(context, title: "Log out", onTap: () {
-              // TODO: implement logout
-            }),
-            _drawerItem(context, title: "Exit current place", onTap: () {
-              // TODO: implement exit
-            }),
+            
+            // --- LISTA MENU ---
+            const SizedBox(height: 10),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                children: [
+                  _DrawerItem(
+                    icon: Icons.dashboard_rounded,
+                    label: 'Dashboard',
+                    isActive: currentRoute == 'dashboard', 
+                    onTap: () {
+                      if (currentRoute != 'dashboard') {
+                        Navigator.pop(context);
+                         // Jeśli chcesz wrócić do home (opcjonalnie):
+                         // Navigator.popUntil(context, (route) => route.isFirst);
+                      } else {
+                        Navigator.pop(context);
+                      }
+                    },
+                  ),
+                  _DrawerItem(
+                    icon: Icons.receipt_long_rounded,
+                    label: 'Expenses',
+                    isActive: currentRoute == 'expenses',
+                    onTap: () {
+                      Navigator.pop(context);
+                      if (currentRoute != 'expenses') {
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const ExpensesScreen()));
+                      }
+                    },
+                  ),
+                  _DrawerItem(
+                    icon: Icons.check_circle_outline_rounded,
+                    label: 'Tasks',
+                    isActive: currentRoute == 'tasks',
+                    onTap: () {
+                      Navigator.pop(context);
+                      if (currentRoute != 'tasks') {
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const TasksScreen()));
+                      }
+                    },
+                  ),
+                  _DrawerItem(
+                    icon: Icons.shopping_cart_outlined,
+                    label: 'Shopping List',
+                    isActive: currentRoute == 'shopping',
+                    onTap: () {
+                      Navigator.pop(context);
+                    },
+                  ),
+                  _DrawerItem(
+                    icon: Icons.group_outlined,
+                    label: 'Members',
+                    isActive: currentRoute == 'members',
+                    onTap: () {
+                      Navigator.pop(context);
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const Divider(color: borderColor, height: 1),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
+              child: _DrawerItem(
+                icon: Icons.logout_rounded,
+                label: 'Log out',
+                textColor: Colors.redAccent,
+                iconColor: Colors.redAccent,
+                onTap: () => _signOut(context),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
+}
 
-  Widget _drawerItem(BuildContext context,
-      {required String title, VoidCallback? onTap}) {
-    return Column(
-      children: [
-        InkWell(
-          onTap: onTap,
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-            color: backgroundColor,
-            child: Text(
-              title,
-              style: const TextStyle(
-                color: textColor,
-                fontFamily: appFontFamily,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1.2,
-                fontSize: 22,
+class _DrawerItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool isActive;
+  final Color? textColor;
+  final Color? iconColor;
+
+  const _DrawerItem({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.isActive = false,
+    this.textColor,
+    this.iconColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = textColor ?? (isActive ? primaryColor : textColor);
+    final iconCol = iconColor ?? (isActive ? primaryColor : lightTextColor);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          decoration: BoxDecoration(
+            color: isActive ? primaryColor.withOpacity(0.1) : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              Icon(icon, size: 22, color: iconCol),
+              const SizedBox(width: 16),
+              Text(
+                label,
+                style: TextStyle(
+                  fontFamily: appFontFamily,
+                  fontSize: 15,
+                  fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+                  color: isActive ? primaryColor : (color ?? textColor),
+                ),
               ),
-            ),
+            ],
           ),
         ),
-        const Divider(color: textColor, height: 1),
-      ],
+      ),
     );
   }
 }

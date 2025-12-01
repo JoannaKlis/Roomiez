@@ -270,7 +270,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           _buildExpensesList(),
         ],
       ),
-      drawer: mb.MenuBar(roomName: _groupName, groupId: _userGroupId),
+      drawer: mb.CustomDrawer(roomName: _groupName, groupId: _userGroupId),
     );
   }
 

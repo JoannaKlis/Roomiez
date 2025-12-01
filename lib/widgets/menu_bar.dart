@@ -6,19 +6,19 @@ import '../constants.dart';
 import '../screens/tasks_screen.dart';
 import '../screens/expenses_screen.dart';
 import '../screens/login_screen.dart';
+import '../screens/home_screen.dart'; // <--- DODANO: Musimy widzieć HomeScreen
 
 class CustomDrawer extends StatelessWidget {
   final String groupId;
   final String roomName;
-  // ZMIANA: Usunąłem 'required' i dałem domyślną pustą wartość.
-  // Dzięki temu stare pliki nie wyrzucą błędu.
+  // Parametr opcjonalny (domyślnie pusty)
   final String currentRoute; 
 
   const CustomDrawer({
     super.key,
     required this.groupId,
     required this.roomName,
-    this.currentRoute = '', // <--- NAPRAWIONE: Parametr opcjonalny
+    this.currentRoute = '', 
   });
 
   void _copyToClipboard(BuildContext context) {
@@ -59,11 +59,10 @@ class CustomDrawer extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 40, 24, 20),
               child: SizedBox(
-                width: double.infinity, // Rozciąga kontener na całą szerokość
+                width: double.infinity, // Rozciąga na całą szerokość
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center, // Centruje w poziomie
                   children: [
-                    // Logo usunięte
                     const Text(
                       'ROOMIES',
                       style: TextStyle(
@@ -147,20 +146,32 @@ class CustomDrawer extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 children: [
+                  // --- DASHBOARD (HOME) ---
                   _DrawerItem(
                     icon: Icons.dashboard_rounded,
                     label: 'Dashboard',
-                    isActive: currentRoute == 'dashboard', 
+                    // Podświetla się, jeśli currentRoute to 'dashboard' lub puste (domyślnie Home)
+                    isActive: currentRoute == 'dashboard' || currentRoute == '', 
                     onTap: () {
-                      if (currentRoute != 'dashboard') {
-                        Navigator.pop(context);
-                         // Jeśli chcesz wrócić do home (opcjonalnie):
-                         // Navigator.popUntil(context, (route) => route.isFirst);
-                      } else {
-                        Navigator.pop(context);
+                      Navigator.pop(context); // Zamykamy drawer
+                      
+                      // Jeśli NIE jesteśmy na dashboardzie (tylko np. na Expenses), to nawigujemy
+                      if (currentRoute != 'dashboard' && currentRoute != '') {
+                         Navigator.pushAndRemoveUntil(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => HomeScreen(
+                                roomName: roomName,
+                                groupId: groupId,
+                              ),
+                            ),
+                            (route) => false, // Czyści historię wstecz
+                         );
                       }
                     },
                   ),
+                  
+                  // --- EXPENSES ---
                   _DrawerItem(
                     icon: Icons.receipt_long_rounded,
                     label: 'Expenses',
@@ -175,6 +186,8 @@ class CustomDrawer extends StatelessWidget {
                       }
                     },
                   ),
+                  
+                  // --- TASKS ---
                   _DrawerItem(
                     icon: Icons.check_circle_outline_rounded,
                     label: 'Tasks',
@@ -189,14 +202,19 @@ class CustomDrawer extends StatelessWidget {
                       }
                     },
                   ),
+                  
+                  // --- SHOPPING LIST ---
                   _DrawerItem(
                     icon: Icons.shopping_cart_outlined,
                     label: 'Shopping List',
                     isActive: currentRoute == 'shopping',
                     onTap: () {
                       Navigator.pop(context);
+                      // Tu dodaj nawigację do ShoppingScreen
                     },
                   ),
+                  
+                  // --- MEMBERS ---
                   _DrawerItem(
                     icon: Icons.group_outlined,
                     label: 'Members',

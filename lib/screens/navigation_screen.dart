@@ -2,20 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Do kopiowania (Clipboard)
 import 'package:firebase_auth/firebase_auth.dart';
 import '../constants.dart';
-import '../screens/home_screen.dart';
+import '../screens/home_screen.dart'; // Import konieczny do nawigacji
 import '../screens/tasks_screen.dart';
 import '../screens/expenses_screen.dart';
-import '../screens/login_screen.dart'; 
+import '../screens/login_screen.dart';
 
-// Wróciłem do nazwy NavigationMenuScreen, żeby Hot Reload zadziałał
 class NavigationMenuScreen extends StatelessWidget {
   final String groupId;
   final String roomName;
+  // Dodajemy parametr, żeby wiedzieć, gdzie jesteśmy
+  final String currentRoute;
 
   const NavigationMenuScreen({
     super.key,
     required this.groupId,
     required this.roomName,
+    this.currentRoute = 'dashboard', // Domyślnie zakładamy, że to Dashboard/Home
   });
 
   // Funkcja kopiowania kodu zaproszenia
@@ -35,10 +37,12 @@ class NavigationMenuScreen extends StatelessWidget {
   void _signOut(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
     // Czyścimy stos nawigacji i wracamy do logowania
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => const LoginScreen()),
-      (Route<dynamic> route) => false,
-    );
+    if (context.mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (Route<dynamic> route) => false,
+      );
+    }
   }
 
   @override
@@ -48,7 +52,7 @@ class NavigationMenuScreen extends StatelessWidget {
       surfaceTintColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.only(
-          topRight: Radius.circular(0), // Kanciasty, pełny drawer (Clean)
+          topRight: Radius.circular(0),
           bottomRight: Radius.circular(0),
         ),
       ),
@@ -66,6 +70,8 @@ class NavigationMenuScreen extends StatelessWidget {
                     'assets/images/logo_roomies.png',
                     width: 50,
                     height: 50,
+                    errorBuilder: (context, error, stackTrace) =>
+                        const Icon(Icons.home, size: 50, color: primaryColor),
                   ),
                   const SizedBox(height: 15),
                   const Text(
@@ -124,7 +130,7 @@ class NavigationMenuScreen extends StatelessWidget {
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
                             color: textColor,
-                            fontFamily: 'Monospace', // Żeby kod był czytelny
+                            fontFamily: 'Monospace',
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -151,46 +157,77 @@ class NavigationMenuScreen extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 children: [
+                  // --- DASHBOARD ---
                   _DrawerItem(
                     icon: Icons.dashboard_rounded,
                     label: 'Dashboard',
+                    isActive: currentRoute == 'dashboard', // Dynamiczne podświetlenie
                     onTap: () {
-                      Navigator.pop(context); // Zamknij drawer
-                      // Jesteśmy już na Home, więc nic nie robimy
+                      Navigator.pop(context); // 1. Zamykamy drawer
+                      
+                      // 2. Sprawdzamy: Jeśli NIE jesteśmy na dashboardzie, to nawigujemy
+                      if (currentRoute != 'dashboard') {
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => HomeScreen(
+                              groupId: groupId,
+                              roomName: roomName,
+                            ),
+                          ),
+                          (route) => false, // Czyści historię wstecz
+                        );
+                      }
+                      // Jeśli currentRoute == 'dashboard', nic więcej się nie dzieje (tylko zamknięcie drawera)
                     },
-                    isActive: true, 
                   ),
+                  
+                  // --- EXPENSES ---
                   _DrawerItem(
                     icon: Icons.receipt_long_rounded,
                     label: 'Expenses',
+                    isActive: currentRoute == 'expenses',
                     onTap: () {
                       Navigator.pop(context);
-                      Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const ExpensesScreen()));
+                      if (currentRoute != 'expenses') {
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const ExpensesScreen()));
+                      }
                     },
                   ),
+                  
+                  // --- TASKS ---
                   _DrawerItem(
                     icon: Icons.check_circle_outline_rounded,
                     label: 'Tasks',
+                    isActive: currentRoute == 'tasks',
                     onTap: () {
                       Navigator.pop(context);
-                      Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => const TasksScreen()));
+                      if (currentRoute != 'tasks') {
+                        Navigator.push(context,
+                            MaterialPageRoute(builder: (_) => const TasksScreen()));
+                      }
                     },
                   ),
+                  
+                  // --- SHOPPING LIST ---
                   _DrawerItem(
                     icon: Icons.shopping_cart_outlined,
                     label: 'Shopping List',
+                    isActive: currentRoute == 'shopping',
                     onTap: () {
                       Navigator.pop(context);
                       // TODO: Ekran listy zakupów
                     },
                   ),
+                  
+                  // --- MEMBERS ---
                   _DrawerItem(
                     icon: Icons.group_outlined,
                     label: 'Members',
+                    isActive: currentRoute == 'members',
                     onTap: () {
                       Navigator.pop(context);
                       // TODO: Ekran członków

@@ -6,6 +6,7 @@ import '../models/task_model.dart';
 import '../services/firestore_service.dart';
 import 'navigation_screen.dart';
 import '../widgets/menu_bar.dart' as mb;
+
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
 
@@ -14,16 +15,12 @@ class TasksScreen extends StatefulWidget {
 }
 
 class _TasksScreenState extends State<TasksScreen> {
-  // --- ZARZĄDZANIE STANEM (Logika) ---
+  // --- ZARZĄDZANIE STANEM (Logika bez zmian) ---
 
   final FirestoreService _firestoreService = FirestoreService();
-
-  // pobieranie UID z zalogowanego użytkownika
-  // jeśli null, będzie pusty string
   final String _currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
   String _groupName = 'Loading...';
   String _userGroupId = '';
-  // ignore: unused_field
   bool _hasGroupError = false;
 
   int _selectedToggleIndex = 0;
@@ -37,8 +34,7 @@ class _TasksScreenState extends State<TasksScreen> {
   List<Map<String, String>> _roomies = [];
   bool _isLoadingRoomies = true;
 
-  // --- logika firestore ---
-  // fetchowanie współlokatorów z Firestore, jeili użytkownik jest zalogowany
+  @override
   void initState() {
     super.initState();
     if (_currentUserId.isNotEmpty) {
@@ -55,36 +51,31 @@ class _TasksScreenState extends State<TasksScreen> {
     super.dispose();
   }
 
-  // pobieranie współlokatorów z Firestore
   void _fetchRoomies(String groupId) async {
-    // jeśli nie ma grupy, nie pobieraj
     if (groupId.isEmpty) return;
 
     final users = await _firestoreService.getCurrentApartmentUsers(groupId);
-    setState(() {
-      _roomies = users;
-      _isLoadingRoomies = false;
+    if (mounted) {
+      setState(() {
+        _roomies = users;
+        _isLoadingRoomies = false;
 
-      // wybór bieżącego użytkownika (jeśli jest na liście)
-      final self = _roomies.firstWhere((u) => u['id'] == _currentUserId,
-          orElse: () => {});
-      if (self.isNotEmpty) {
-        _selectedRoomieId = self['id'];
-        _selectedRoomieName = self['name'];
-      } else if (_roomies.isNotEmpty) {
-        // jeśli nie jesteśmy w domyślnej grupie, wybieramy pierwszego
-        _selectedRoomieId = _roomies.first['id'];
-        _selectedRoomieName = _roomies.first['name'];
-      }
-    });
+        final self = _roomies.firstWhere((u) => u['id'] == _currentUserId,
+            orElse: () => {});
+        if (self.isNotEmpty) {
+          _selectedRoomieId = self['id'];
+          _selectedRoomieName = self['name'];
+        } else if (_roomies.isNotEmpty) {
+          _selectedRoomieId = _roomies.first['id'];
+          _selectedRoomieName = _roomies.first['name'];
+        }
+      });
+    }
   }
 
-  // pobieranie nazwy grupy i ID użytkownika
   void _loadGroupData() async {
     try {
-      // pobranie groupId
       final groupId = await _firestoreService.getCurrentUserGroupId();
-      // pobranie nazwy grupy
       final name = await _firestoreService.getGroupName(groupId);
 
       if (mounted) {
@@ -92,11 +83,9 @@ class _TasksScreenState extends State<TasksScreen> {
           _userGroupId = groupId;
           _groupName = name;
         });
-        // pobranie współlokatorów
         _fetchRoomies(groupId);
       }
     } catch (e) {
-      // obsługa błędów rzuconych przez getCurrentUserGroupId
       print('Group Loading Error: $e');
       if (mounted) {
         setState(() {
@@ -113,33 +102,23 @@ class _TasksScreenState extends State<TasksScreen> {
     }
   }
 
-  // wybór daty i godziny dueDate
   void _selectDateTime() async {
     final DateTime? date = await showDatePicker(
       context: context,
       initialDate: _selectedDueDate,
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
-
-      // własny motyw
       builder: (BuildContext context, Widget? child) {
         return Theme(
           data: ThemeData.light().copyWith(
-            textTheme:
-                Theme.of(context).textTheme.apply(fontFamily: 'Baloo Bhai'),
-
-            colorScheme: ColorScheme.light(
-              primary:
-                  primaryColor, // kolor nagłówka, aktywnych dni, przycisków
-              onPrimary: backgroundColor, // kolor tekstu na tle primary
-              surface: backgroundColor, // kolor tła kalendarza
-              onSurface: textColor, // kolor tekstu (dni)
+            colorScheme: const ColorScheme.light(
+              primary: primaryColor,
+              onPrimary: Colors.white,
+              surface: backgroundColor,
+              onSurface: textColor,
             ),
-            // styl przycisków akcji (OK/CANCEL)
             textButtonTheme: TextButtonThemeData(
-              style: TextButton.styleFrom(
-                foregroundColor: primaryColor, // solor tekstu przycisków akcji
-              ),
+              style: TextButton.styleFrom(foregroundColor: primaryColor),
             ),
           ),
           child: child!,
@@ -152,24 +131,14 @@ class _TasksScreenState extends State<TasksScreen> {
     final TimeOfDay? time = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(_selectedDueDate),
-
-      // nałożenie motywu
       builder: (BuildContext context, Widget? child) {
         return Theme(
           data: ThemeData.light().copyWith(
-            textTheme:
-                Theme.of(context).textTheme.apply(fontFamily: 'Baloo Bhai'),
-            colorScheme: ColorScheme.light(
-              primary:
-                  primaryColor, // kolor akcentu (wskazówka zegara, tło wybranego numeru)
-              onPrimary: backgroundColor, // kolor tekstu na tle primary
-              surface: backgroundColor, // tło całego zegara
-              onSurface: textColor, // kolor cyfr
-            ),
-            textButtonTheme: TextButtonThemeData(
-              style: TextButton.styleFrom(
-                foregroundColor: primaryColor,
-              ),
+            colorScheme: const ColorScheme.light(
+              primary: primaryColor,
+              onPrimary: Colors.white,
+              surface: backgroundColor,
+              onSurface: textColor,
             ),
           ),
           child: child!,
@@ -178,7 +147,6 @@ class _TasksScreenState extends State<TasksScreen> {
     );
 
     if (time == null) {
-      // jeśli anulowano wybór czasu, używamy daty z domyślnym czasem
       setState(() {
         _selectedDueDate = date;
       });
@@ -196,7 +164,6 @@ class _TasksScreenState extends State<TasksScreen> {
     });
   }
 
-  // dodawanie nowego zadania
   void _addNewTask() {
     if (_descriptionController.text.isEmpty ||
         _selectedRoomieId == null ||
@@ -212,7 +179,7 @@ class _TasksScreenState extends State<TasksScreen> {
     }
 
     final newTask = Task(
-      id: '', // firestore wygeneruje ID
+      id: '',
       title: _descriptionController.text.trim(),
       assignedToId: _selectedRoomieId!,
       assignedToName: _selectedRoomieName!,
@@ -240,7 +207,6 @@ class _TasksScreenState extends State<TasksScreen> {
     });
   }
 
-  // aktualizacja statusu zadania
   void _toggleTaskStatus(String taskId, bool newStatus) {
     _firestoreService.updateTaskStatus(taskId, newStatus).catchError((e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -251,89 +217,91 @@ class _TasksScreenState extends State<TasksScreen> {
     });
   }
 
-  // --- BUDOWANIE INTERFEJSU (UI) ---
+  // --- BUDOWANIE INTERFEJSU (UI - Clean Style) ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: backgroundColor,
       body: CustomScrollView(
         slivers: [
-          // AppBar z obrazka
+          // AppBar
           SliverAppBar(
             backgroundColor: backgroundColor,
+            surfaceTintColor: Colors.transparent,
             elevation: 0,
             floating: true,
             pinned: true,
-            centerTitle: true,
             leading: Builder(
-            builder: (context) => IconButton(
-            icon: const Icon(Icons.menu, color: textColor),
-            onPressed: () {
-              Scaffold.of(context).openDrawer();
-            },
+              builder: (context) => IconButton(
+                icon: const Icon(Icons.menu_rounded, size: 28, color: textColor),
+                onPressed: () {
+                  Scaffold.of(context).openDrawer();
+                },
               ),
             ),
-            title: Center(
-                child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
+            title: Column(
               children: [
                 const Text(
                   'ROOMIES',
                   style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: primaryColor,
+                    fontFamily: 'StackSansNotch',
+                    letterSpacing: 0.5,
                   ),
                 ),
                 Text(
-                  _groupName,
+                  _groupName.isNotEmpty ? _groupName.toUpperCase() : '',
                   style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: 10,
                     color: lightTextColor,
                     fontWeight: FontWeight.bold,
+                    fontFamily: appFontFamily,
+                    letterSpacing: 1.0,
                   ),
                 ),
               ],
-            )),
+            ),
+            centerTitle: true,
             actions: [
               IconButton(
-                icon:
-                    const Icon(Icons.notifications_outlined, color: textColor),
-                onPressed: () {
-                  // TODO: Otwórz powiadomienia
-                },
+                icon: const Icon(Icons.notifications_none_rounded,
+                    size: 28, color: textColor),
+                onPressed: () {},
               ),
             ],
           ),
 
-          // Reszta zawartości ekranu
+          // Reszta zawartości
           SliverPadding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10),
             sliver: SliverList(
               delegate: SliverChildListDelegate(
                 [
-                  // Tytuł ekranu
                   const Center(
                     child: Text(
                       'Tasks',
                       style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 32,
+                        fontWeight: FontWeight.w800,
                         color: textColor,
+                        fontFamily: appFontFamily,
+                        letterSpacing: -1.0,
                       ),
                     ),
                   ),
                   const SizedBox(height: 20),
 
-                  // Karta "Your task"
+                  // Karta podsumowania (JASNA WERSJA)
                   _buildTaskSummaryCard(),
                   const SizedBox(height: 20),
 
-                  // --- POPRAWKA 2: Animowane pojawianie się i znikanie formularza ---
+                  // Formularz (Animowany)
                   AnimatedSize(
                     duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
+                    curve: Curves.easeOutCubic,
                     child: Container(
-                      height: _isNewTaskFormVisible ? null : 0,
                       child: _isNewTaskFormVisible
                           ? Column(
                               children: [
@@ -344,69 +312,108 @@ class _TasksScreenState extends State<TasksScreen> {
                           : const SizedBox.shrink(),
                     ),
                   ),
-                  // --- Koniec POPRAWKI 2 ---
 
-                  // Przełączniki "All tasks" / "My tasks"
+                  // Przełączniki
                   _buildToggleButtons(),
                   const SizedBox(height: 20),
                 ],
               ),
             ),
           ),
-          // Lista zadań (dynamicznie filtrowana)
+          
+          // Lista zadań
           _buildTaskList(),
+          
+          const SliverToBoxAdapter(child: SizedBox(height: 40)),
         ],
       ),
       drawer: mb.CustomDrawer(roomName: _groupName, groupId: _userGroupId),
     );
   }
 
-  // --- WIDGETY POMOCNICZE ---
+  // --- WIDGETY POMOCNICZE (Clean UI) ---
 
-  /// Karta podsumowania (Your task / No tasks for today)
+  /// Karta podsumowania - ZMIENIONA NA JASNĄ
   Widget _buildTaskSummaryCard() {
-    final cardBackgroundColor = accentColor;
-
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: cardBackgroundColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: textColor, width: 2), // Obramowanie
-      ),
+        color: surfaceColor, // ZMIANA: Białe tło
+        borderRadius: BorderRadius.circular(24),
+        /*border: Border.all(color: borderColor), // ZMIANA: Delikatna ramka
+        boxShadow: [
+          BoxShadow(
+            color: textColor.withOpacity(0.05), // Delikatny cień
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],*/
+      ), 
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Column(
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Your task',
+                'Your Tasks',
                 style: TextStyle(
-                    color: textColor,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16),
+                  color: lightTextColor, // ZMIANA: Ciemny szary
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                  fontFamily: appFontFamily,
+                ),
               ),
-              Text(
-                'No tasks for today',
-                style: TextStyle(color: lightTextColor, fontSize: 14),
+              const SizedBox(height: 4),
+              const Text(
+                'Check updates', 
+                style: TextStyle(
+                  color: textColor, // ZMIANA: Ciemny tekst
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800, // Bardzo gruby
+                  fontFamily: appFontFamily,
+                  letterSpacing: -0.5,
+                ),
               ),
             ],
           ),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                _isNewTaskFormVisible = !_isNewTaskFormVisible;
-                // zresetuj pole opisu jeśli anulowano
-                if (!_isNewTaskFormVisible) {
-                  _descriptionController.clear();
-                  _selectedDueDate =
-                      DateTime.now().add(const Duration(days: 1)); // reset daty
-                }
-              });
-            },
-            // Zmiana tekstu przycisku w zależności od stanu
-            child: Text(_isNewTaskFormVisible ? 'Cancel' : 'New task'),
+          Material(
+            color: primaryColor, // Kolor przewodni
+            borderRadius: BorderRadius.circular(16),
+            child: InkWell(
+              onTap: () {
+                setState(() {
+                  _isNewTaskFormVisible = !_isNewTaskFormVisible;
+                  if (!_isNewTaskFormVisible) {
+                    _descriptionController.clear();
+                    _selectedDueDate =
+                        DateTime.now().add(const Duration(days: 1));
+                  }
+                });
+              },
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  children: [
+                    Icon(
+                      _isNewTaskFormVisible ? Icons.close : Icons.add,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _isNewTaskFormVisible ? 'Close' : 'Add',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: appFontFamily,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -415,52 +422,45 @@ class _TasksScreenState extends State<TasksScreen> {
 
   /// Formularz dodawania nowego zadania
   Widget _buildNewTaskForm() {
-    final cardBackgroundColor = accentColor;
-
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: cardBackgroundColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: textColor, width: 2), // Obramowanie
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: textColor.withOpacity(0.03),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Pole "Description"
+          const Text("New Task",
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                  fontFamily: appFontFamily)),
+          const SizedBox(height: 16),
+          
           TextField(
             controller: _descriptionController,
-            decoration: InputDecoration(
-              hintText: 'Description',
-              hintStyle: TextStyle(color: accentColor.withOpacity(0.8)),
-              filled: true,
-              fillColor: primaryColor,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8.0),
-                borderSide: BorderSide.none,
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8.0),
-                borderSide: const BorderSide(color: accentColor, width: 2.0),
-              ),
+            decoration: const InputDecoration(
+              hintText: 'Task description',
+              prefixIcon: Icon(Icons.edit_note, color: lightTextColor),
             ),
-            style: const TextStyle(color: Colors.white),
+            style: const TextStyle(color: textColor, fontFamily: appFontFamily),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
 
-          // Lista współlokatorów
           DropdownButtonFormField<String>(
-            decoration: InputDecoration(
-              labelText: 'Assigned to',
-              labelStyle: const TextStyle(color: textColor),
-              filled: true,
-              fillColor: primaryColor.withAlpha(38),
-              border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8.0),
-                  borderSide: BorderSide.none),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8.0),
-                borderSide: const BorderSide(color: primaryColor, width: 2.0),
-              ),
+            decoration: const InputDecoration(
+              hintText: 'Assigned to',
+              prefixIcon: Icon(Icons.person_outline, color: lightTextColor),
             ),
             value: _selectedRoomieId,
             hint: _isLoadingRoomies
@@ -469,7 +469,7 @@ class _TasksScreenState extends State<TasksScreen> {
             items: _roomies.map((user) {
               return DropdownMenuItem<String>(
                 value: user['id'],
-                child: Text(user['name']!),
+                child: Text(user['name']!, style: const TextStyle(color: textColor)),
               );
             }).toList(),
             onChanged: _isLoadingRoomies
@@ -481,32 +481,44 @@ class _TasksScreenState extends State<TasksScreen> {
                           .firstWhere((user) => user['id'] == newValue)['name'];
                     });
                   },
+            icon: const Icon(Icons.arrow_drop_down_rounded, color: textColor),
+            dropdownColor: Colors.white,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
 
-          // wybór daty i godziny
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _selectDateTime,
-                  icon: const Icon(Icons.calendar_today),
-                  label: Text(
-                    'Due: ${DateFormat('dd.MM.yyyy HH:mm').format(_selectedDueDate)}',
-                    textAlign: TextAlign.left,
-                  ),
-                ),
+          // Wybór daty
+          InkWell(
+            onTap: _selectDateTime,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              decoration: BoxDecoration(
+                color: surfaceColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.transparent),
               ),
-            ],
+              child: Row(
+                children: [
+                  const Icon(Icons.calendar_today_rounded, color: lightTextColor),
+                  const SizedBox(width: 12),
+                  Text(
+                    DateFormat('dd.MM.yyyy HH:mm').format(_selectedDueDate),
+                    style: const TextStyle(
+                        color: textColor,
+                        fontSize: 16,
+                        fontFamily: appFontFamily),
+                  ),
+                ],
+              ),
+            ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 20),
 
-          // Przycisk "SUBMIT"
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
               onPressed: _addNewTask,
-              child: const Text('SUBMIT'),
+              child: const Text('Create Task'),
             ),
           ),
         ],
@@ -516,50 +528,52 @@ class _TasksScreenState extends State<TasksScreen> {
 
   /// Przełączniki "All tasks" / "My tasks"
   Widget _buildToggleButtons() {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildToggleButton(
-            text: 'All tasks',
-            isSelected: _selectedToggleIndex == 0,
-            onPressed: () {
-              setState(() {
-                _selectedToggleIndex = 0;
-              });
-            },
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _buildToggleButton(
-            text: 'My tasks',
-            isSelected: _selectedToggleIndex == 1,
-            onPressed: () {
-              setState(() {
-                _selectedToggleIndex = 1;
-              });
-            },
-          ),
-        ),
-      ],
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: surfaceColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Expanded(child: _buildToggleButton('All tasks', 0)),
+          Expanded(child: _buildToggleButton('My tasks', 1)),
+        ],
+      ),
     );
   }
 
-  /// Pomocniczy widget do budowania przycisków przełącznika
-  Widget _buildToggleButton({
-    required String text,
-    required bool isSelected,
-    required VoidCallback onPressed,
-  }) {
-    return isSelected
-        ? ElevatedButton(
-            onPressed: onPressed,
-            child: Text(text),
-          )
-        : OutlinedButton(
-            onPressed: onPressed,
-            child: Text(text),
-          );
+  Widget _buildToggleButton(String text, int index) {
+    final isSelected = _selectedToggleIndex == index;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedToggleIndex = index),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: textColor.withOpacity(0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  )
+                ]
+              : [],
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          text,
+          style: TextStyle(
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            color: isSelected ? textColor : lightTextColor,
+            fontFamily: appFontFamily,
+          ),
+        ),
+      ),
+    );
   }
 
   /// Lista zadań (filtrowana)
@@ -568,42 +582,45 @@ class _TasksScreenState extends State<TasksScreen> {
       stream: _firestoreService.getTasks(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          // zwracamy SliverToBoxAdapter dla RenderBoxa (ładowanie)
           return const SliverToBoxAdapter(
-            child: Center(child: CircularProgressIndicator()),
+            child: Center(
+                child: Padding(
+              padding: EdgeInsets.all(20.0),
+              child: CircularProgressIndicator(color: primaryColor),
+            )),
           );
         }
         if (snapshot.hasError) {
           return SliverToBoxAdapter(
             child: Center(
-                child: Text('Error loading tasks: ${snapshot.error}',
-                    style: const TextStyle(color: Colors.red))),
+                child: Text('Error loading tasks',
+                    style: const TextStyle(color: Colors.red, fontFamily: appFontFamily))),
           );
         }
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const SliverToBoxAdapter(
               child: Center(
-                  child: Text('No tasks found!',
-                      style: TextStyle(color: textColor))));
+                  child: Padding(
+            padding: EdgeInsets.only(top: 40.0),
+            child: Text('No tasks found!',
+                style: TextStyle(color: lightTextColor, fontFamily: appFontFamily)),
+          )));
         }
 
         final allTasks = snapshot.data!;
         final filteredTasks = allTasks.where((task) {
           if (_selectedToggleIndex == 1) {
-            // My tasks
             return task.assignedToId == _currentUserId;
           }
-          return true; // All tasks
+          return true;
         }).toList();
 
-        // zwracamy SliverList
         return SliverList(
           delegate: SliverChildBuilderDelegate(
             (context, index) {
               final task = filteredTasks[index];
               return Padding(
-                // dodajemy Padding do elementu listy, aby uzyskać marginesy boczne
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
                 child: _buildTaskListItem(task),
               );
             },
@@ -616,14 +633,12 @@ class _TasksScreenState extends State<TasksScreen> {
 
   // Pojedynczy element na liście zadań
   Widget _buildTaskListItem(Task task) {
-    final cardBackgroundColor = accentColor;
     final bool isMyTask = task.assignedToId == _currentUserId;
 
     Widget leadingWidget;
     if (isMyTask) {
-      leadingWidget = SizedBox(
-        width: 40.0,
-        height: 40.0,
+      leadingWidget = Transform.scale(
+        scale: 1.2,
         child: Checkbox(
           value: task.isDone,
           onChanged: (bool? newValue) {
@@ -632,71 +647,84 @@ class _TasksScreenState extends State<TasksScreen> {
             }
           },
           activeColor: primaryColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+          side: const BorderSide(color: lightTextColor, width: 1.5),
         ),
       );
     } else {
-      leadingWidget = CircleAvatar(
-        backgroundColor: primaryColor,
+      leadingWidget = Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: surfaceColor,
+          borderRadius: BorderRadius.circular(12),
+        ),
         child: Text(
-          task.assignedToName[0], // Pierwsza litera imienia
-          style:
-              const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          task.assignedToName.isNotEmpty ? task.assignedToName[0].toUpperCase() : '?',
+          style: const TextStyle(
+              color: primaryColor, fontWeight: FontWeight.w900, fontSize: 16),
         ),
       );
     }
 
     return Container(
       padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: cardBackgroundColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: textColor, width: 2), // Obramowanie
+        color: task.isDone ? surfaceColor.withOpacity(0.5) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: textColor.withOpacity(0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Awatar (lub Checkbox), Tytuł i Przypisany
-          Row(
-            children: [
-              leadingWidget,
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    task.title,
-                    style: const TextStyle(
-                      color: textColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
+          leadingWidget,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  task.title,
+                  style: TextStyle(
+                    color: task.isDone ? lightTextColor : textColor,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                    fontFamily: appFontFamily,
+                    decoration: task.isDone ? TextDecoration.lineThrough : null,
+                    decorationColor: lightTextColor,
                   ),
-                  Text(
-                    task.assignedToName,
-                    style: const TextStyle(color: lightTextColor, fontSize: 14),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          // Status i Data
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                task.isDone ? 'Done' : 'To do',
-                style: TextStyle(
-                  color: task.isDone ? lightTextColor : textColor,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
                 ),
+                if (!isMyTask)
+                  Text(
+                    'Assigned to: ${task.assignedToName}',
+                    style: const TextStyle(
+                        color: lightTextColor, fontSize: 12, fontFamily: appFontFamily),
+                  ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: task.isDone ? Colors.green.withOpacity(0.1) : surfaceColor,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              DateFormat('dd MMM').format(task.dueDate),
+              style: TextStyle(
+                color: task.isDone ? Colors.green : lightTextColor,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                fontFamily: appFontFamily,
               ),
-              Text(
-                DateFormat('dd.MM.yyyy').format(task.dueDate),
-                style: const TextStyle(color: lightTextColor, fontSize: 12),
-              ),
-            ],
+            ),
           ),
         ],
       ),

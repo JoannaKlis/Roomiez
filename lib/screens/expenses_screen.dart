@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
-import '../constants.dart'; // Importowanie Twoich stałych kolorów
-import '../models/expense_history_item.dart'; // Import modelu danych
+import '../constants.dart'; // Twoje stałe (primaryColor, backgroundColor, fonts...)
+import '../models/expense_history_item.dart';
 import '../services/firestore_service.dart';
 import 'navigation_screen.dart';
 import '../widgets/menu_bar.dart' as mb;
@@ -15,13 +15,12 @@ class ExpensesScreen extends StatefulWidget {
 }
 
 class _ExpensesScreenState extends State<ExpensesScreen> {
-  // --- ZARZĄDZANIE STANEM (Logika) ---
+  // --- ZARZĄDZANIE STANEM (Logika bez zmian) ---
 
   final FirestoreService _firestoreService = FirestoreService();
   final String _currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
   String _groupName = 'Loading...';
   String _userGroupId = '';
-  // ignore: unused_field
   bool _hasGroupError = false;
 
   int _selectedToggleIndex = 0;
@@ -29,20 +28,16 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   final TextEditingController _amountController = TextEditingController();
 
   Map<String, String> _splitWith = {};
-
   List<Map<String, String>> _roomies = [];
-  // ignore: unused_field
   bool _isLoadingRoomies = true;
 
-  final double _netBalance =
-      50.00; // tymczasowe saldo dopóki nie ma logiki dzielenia rachunków
+  final double _netBalance = 50.00;
   bool _isNewExpenseFormVisible = false;
 
-  // --- SYMULACJA BACKENDU (Nowe zmienne) ---
+  // Symulacja backendu
   final Set<String> _mockMarkedAsPaid = {};
   final Set<String> _mockConfirmedReceived = {};
 
-  // --- logika firestore ---
   @override
   void initState() {
     super.initState();
@@ -121,7 +116,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     }
 
     final newExpense = ExpenseHistoryItem(
-      id: '',
+      id: '', // Firestore nada ID, ale tu placeholder
       description: _descriptionController.text.trim(),
       payerId: _currentUserId,
       amount: amount,
@@ -140,7 +135,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Expense added successfully!'),
-            backgroundColor: Colors.green),
+            backgroundColor: primaryColor),
       );
     }).catchError((e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -167,89 +162,95 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     final shareAmount = item.amount / splitCount;
     final shareText = currencyFormat.format(shareAmount);
 
-    return '$payerName paid. Split $shareText each ($splitCount people)';
+    return '$payerName paid. Split $shareText each';
   }
 
   // --- BUDOWANIE INTERFEJSU (UI) ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: backgroundColor,
       body: CustomScrollView(
         slivers: [
-          // AppBar
+          // --- APP BAR (Clean Style) ---
           SliverAppBar(
             backgroundColor: backgroundColor,
+            surfaceTintColor: Colors.transparent,
             elevation: 0,
             floating: true,
             pinned: true,
             leading: Builder(
               builder: (context) => IconButton(
-                icon: const Icon(Icons.menu, color: textColor),
+                icon: const Icon(Icons.menu_rounded, size: 28, color: textColor),
                 onPressed: () {
                   Scaffold.of(context).openDrawer();
                 },
               ),
             ),
-            title: Center(
-                child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
+            title: Column(
               children: [
                 const Text(
                   'ROOMIES',
                   style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
-                    fontFamily: appFontFamily,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: primaryColor,
+                    fontFamily: 'StackSansNotch', // Twoja czcionka
+                    letterSpacing: 0.5,
                   ),
                 ),
                 Text(
-                  _groupName,
+                  _groupName.isNotEmpty ? _groupName.toUpperCase() : '',
                   style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: 10,
                     color: lightTextColor,
                     fontWeight: FontWeight.bold,
                     fontFamily: appFontFamily,
+                    letterSpacing: 1.0,
                   ),
                 ),
               ],
-            )),
+            ),
+            centerTitle: true,
             actions: [
               IconButton(
-                icon:
-                    const Icon(Icons.notifications_outlined, color: textColor),
+                icon: const Icon(Icons.notifications_none_rounded,
+                    size: 28, color: textColor),
                 onPressed: () {},
               ),
             ],
           ),
 
-          // Reszta zawartości ekranu
+          // --- GŁÓWNA ZAWARTOŚĆ ---
           SliverPadding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10),
             sliver: SliverList(
               delegate: SliverChildListDelegate(
                 [
+                  // WYŚRODKOWANY NAPIS EXPENSES
                   const Center(
                     child: Text(
-                      'Our expenses',
+                      'Expenses',
                       style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 32,
+                        fontWeight: FontWeight.w800,
                         color: textColor,
                         fontFamily: appFontFamily,
+                        letterSpacing: -1.0,
                       ),
                     ),
                   ),
                   const SizedBox(height: 20),
 
+                  // Karta Balansu (Teraz Jasna)
                   _buildBalanceCard(),
                   const SizedBox(height: 20),
 
+                  // Formularz (Animowany)
                   AnimatedSize(
                     duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
+                    curve: Curves.easeOutCubic,
                     child: Container(
-                      height: _isNewExpenseFormVisible ? null : 0,
                       child: _isNewExpenseFormVisible
                           ? Column(
                               children: [
@@ -261,35 +262,34 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     ),
                   ),
 
+                  // Przełączniki (All / Owed / Lent)
                   _buildToggleButtons(),
                   const SizedBox(height: 20),
                 ],
               ),
             ),
           ),
+          
+          // Lista wydatków
           _buildExpensesList(),
+          
+          const SliverToBoxAdapter(child: SizedBox(height: 40)),
         ],
       ),
       drawer: mb.CustomDrawer(roomName: _groupName, groupId: _userGroupId),
     );
   }
 
-  // --- WIDGETY POMOCNICZE ---
+  // --- WIDGETY POMOCNICZE (Clean UI) ---
 
-  /// Karta "Your balance" - MODERN
+  /// Karta "Your balance" - WERSJA JASNA (Light Theme)
   Widget _buildBalanceCard() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.6), // Nowoczesne, jasne tło
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: textColor.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        color: surfaceColor, // Jasnoszary zamiast czarnego
+        borderRadius: BorderRadius.circular(24),
+        // Usunąłem cień, żeby było bardziej płasko, albo można dać bardzo delikatny
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -298,40 +298,59 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Your balance',
+                'Your Balance',
                 style: TextStyle(
-                    color: textColor,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    fontFamily: appFontFamily),
+                  color: lightTextColor, // Ciemniejszy szary dla tekstu
+                  fontWeight: FontWeight.w500,
+                  fontSize: 14,
+                  fontFamily: appFontFamily,
+                ),
               ),
+              const SizedBox(height: 4),
               Text(
                 '${_netBalance >= 0 ? '+' : ''}${_netBalance.toStringAsFixed(2)} PLN',
-                style: TextStyle(
-                  color: _netBalance >= 0 ? Colors.green[800] : Colors.red[800],
-                  fontSize: 20,
+                style: const TextStyle(
+                  color: textColor, // Ciemny tekst (czarny)
+                  fontSize: 28,
                   fontWeight: FontWeight.bold,
                   fontFamily: appFontFamily,
+                  letterSpacing: -0.5,
                 ),
               ),
             ],
           ),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                _isNewExpenseFormVisible = !_isNewExpenseFormVisible;
-              });
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: textColor,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+          // Przycisk "+" (Action Button)
+          Material(
+            color: primaryColor, // Kolor przewodni
+            borderRadius: BorderRadius.circular(16),
+            child: InkWell(
+              onTap: () {
+                setState(() {
+                  _isNewExpenseFormVisible = !_isNewExpenseFormVisible;
+                });
+              },
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  children: [
+                    Icon(
+                      _isNewExpenseFormVisible ? Icons.close : Icons.add,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _isNewExpenseFormVisible ? 'Close' : 'Add',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: appFontFamily,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            child: Text(
-              _isNewExpenseFormVisible ? 'Cancel' : 'New expense',
-              style: const TextStyle(
-                  color: backgroundColor, fontFamily: appFontFamily),
             ),
           ),
         ],
@@ -339,75 +358,125 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     );
   }
 
-  /// Formularz dodawania nowego wydatku - MODERN
+  /// Formularz dodawania nowego wydatku - Czysty styl
   Widget _buildNewExpenseForm() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.6),
-        borderRadius: BorderRadius.circular(20),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: borderColor),
         boxShadow: [
           BoxShadow(
-            color: textColor.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: textColor.withOpacity(0.03),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Text("New Expense", 
+            style: TextStyle(
+              fontSize: 18, 
+              fontWeight: FontWeight.bold, 
+              color: textColor,
+              fontFamily: appFontFamily
+            )
+          ),
+          const SizedBox(height: 16),
+          
           TextField(
             controller: _descriptionController,
-            decoration: _buildFormInputDecoration(hintText: 'Description'),
-            style: const TextStyle(color: textColor),
+            decoration: const InputDecoration(
+              hintText: 'What is this for?',
+              prefixIcon: Icon(Icons.description_outlined, color: lightTextColor),
+            ),
+            style: const TextStyle(color: textColor, fontFamily: appFontFamily),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
+          
           TextField(
             controller: _amountController,
-            decoration: _buildFormInputDecoration(hintText: 'Amount'),
-            style: const TextStyle(color: textColor),
+            decoration: const InputDecoration(
+              hintText: 'Amount',
+              prefixIcon: Icon(Icons.attach_money_rounded, color: lightTextColor),
+              suffixText: 'PLN',
+            ),
+            style: const TextStyle(color: textColor, fontFamily: appFontFamily),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
           ),
-          const SizedBox(height: 10),
-          ..._roomies.map((user) {
-            final userId = user['id']!;
-            final userName = user['name']!;
+          const SizedBox(height: 16),
 
-            return CheckboxListTile(
-              title: Text(userName,
-                  style: const TextStyle(
-                      color: textColor, fontFamily: appFontFamily)),
-              value: _splitWith[userId] == 'true',
-              onChanged: (bool? value) {
-                setState(() {
-                  if (userId != _currentUserId) {
-                    _splitWith[userId] = value == true ? 'true' : 'false';
-                  }
-                });
-              },
-              activeColor: textColor,
-              contentPadding: EdgeInsets.zero,
-              controlAffinity: ListTileControlAffinity.leading,
-              visualDensity: VisualDensity.compact,
-            );
-          }).toList(),
-          const SizedBox(height: 10),
+          const Text("Split with:", 
+            style: TextStyle(
+              fontSize: 14, 
+              fontWeight: FontWeight.w600, 
+              color: lightTextColor,
+              fontFamily: appFontFamily
+            )
+          ),
+          const SizedBox(height: 8),
+
+          // Lista współlokatorów
+          Column(
+            children: _roomies.map((user) {
+              final userId = user['id']!;
+              final userName = user['name']!;
+              final isSelected = _splitWith[userId] == 'true';
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: InkWell(
+                  onTap: () {
+                    setState(() {
+                      if (userId != _currentUserId) {
+                        _splitWith[userId] = isSelected ? 'false' : 'true';
+                      }
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: isSelected ? primaryColor.withOpacity(0.05) : surfaceColor,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected ? primaryColor : Colors.transparent,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          isSelected ? Icons.check_circle_rounded : Icons.circle_outlined,
+                          color: isSelected ? primaryColor : lightTextColor,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          userName,
+                          style: TextStyle(
+                            color: textColor,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            fontFamily: appFontFamily,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 20),
+
+          // Przycisk "SUBMIT"
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
               onPressed: _addNewExpense,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryColor,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text('SUBMIT',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: appFontFamily)),
+              child: const Text('Add Expense'),
             ),
           ),
         ],
@@ -415,83 +484,52 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     );
   }
 
-  InputDecoration _buildFormInputDecoration({required String hintText}) {
-    return InputDecoration(
-      hintText: hintText,
-      hintStyle: TextStyle(color: textColor.withOpacity(0.5)),
-      filled: true,
-      fillColor: Colors.white,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12.0),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12.0),
-        borderSide: const BorderSide(color: primaryColor, width: 2.0),
-      ),
-    );
-  }
-
-  /// Przełączniki "All" / "Owed" / "Lent" - MODERN
+  /// Przełączniki "All" / "Owed" / "Lent" - Styl pastylek
   Widget _buildToggleButtons() {
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(25),
-      ),
       padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: surfaceColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Row(
         children: [
-          Expanded(
-            child: _buildToggleButton(
-              text: 'All',
-              isSelected: _selectedToggleIndex == 0,
-              onPressed: () => setState(() => _selectedToggleIndex = 0),
-            ),
-          ),
-          const SizedBox(width: 5),
-          Expanded(
-            child: _buildToggleButton(
-              text: 'Owed',
-              isSelected: _selectedToggleIndex == 1,
-              onPressed: () => setState(() => _selectedToggleIndex = 1),
-            ),
-          ),
-          const SizedBox(width: 5),
-          Expanded(
-            child: _buildToggleButton(
-              text: 'Lent',
-              isSelected: _selectedToggleIndex == 2,
-              onPressed: () => setState(() => _selectedToggleIndex = 2),
-            ),
-          ),
+          Expanded(child: _buildToggleButton('All', 0)),
+          Expanded(child: _buildToggleButton('Owed', 1)),
+          Expanded(child: _buildToggleButton('Lent', 2)),
         ],
       ),
     );
   }
 
-  Widget _buildToggleButton({
-    required String text,
-    required bool isSelected,
-    required VoidCallback onPressed,
-  }) {
-    return ElevatedButton(
-      onPressed: onPressed,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: isSelected ? primaryColor : Colors.transparent,
-        foregroundColor: isSelected ? Colors.white : textColor,
-        elevation: isSelected ? 2 : 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+  Widget _buildToggleButton(String text, int index) {
+    final isSelected = _selectedToggleIndex == index;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedToggleIndex = index),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 12),
-        shadowColor: Colors.transparent, // usuwa cień dla nieaktywnych
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          fontFamily: appFontFamily,
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: textColor.withOpacity(0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  )
+                ]
+              : [],
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          text,
+          style: TextStyle(
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            color: isSelected ? textColor : lightTextColor,
+            fontFamily: appFontFamily,
+          ),
         ),
       ),
     );
@@ -504,35 +542,43 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const SliverToBoxAdapter(
-            child: Center(child: CircularProgressIndicator()),
+            child: Center(child: Padding(
+              padding: EdgeInsets.all(20.0),
+              child: CircularProgressIndicator(color: primaryColor),
+            )),
           );
         }
         if (snapshot.hasError) {
           return SliverToBoxAdapter(
             child: Center(
-                child: Text('Error loading expenses: ${snapshot.error}',
-                    style: const TextStyle(color: Colors.red))),
+                child: Text('Error loading expenses',
+                    style: const TextStyle(color: Colors.red, fontFamily: appFontFamily))),
           );
         }
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const SliverToBoxAdapter(
               child: Center(
-                  child: Text('No expenses found!',
-                      style: TextStyle(color: textColor))));
+                  child: Padding(
+                    padding: EdgeInsets.only(top: 40.0),
+                    child: Text('No expenses yet',
+                        style: TextStyle(color: lightTextColor, fontFamily: appFontFamily)),
+                  )));
         }
 
         final allTransactions = snapshot.data!;
 
         final filteredTransactions = allTransactions.where((item) {
           if (_selectedToggleIndex == 1) {
+            // Owed
             return item.participantsIds.contains(_currentUserId) &&
                 item.payerId != _currentUserId;
           }
           if (_selectedToggleIndex == 2) {
+            // Lent
             return item.payerId == _currentUserId &&
                 item.participantsIds.length > 1;
           }
-          return true;
+          return true; // All
         }).toList();
 
         return SliverList(
@@ -540,7 +586,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
             (context, index) {
               final item = filteredTransactions[index];
               return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
                 child: _buildExpenseListItem(item),
               );
             },
@@ -551,124 +597,47 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     );
   }
 
-  /// Pojedynczy element na liście wydatków (MODERN + FIX OVERFLOW)
+  /// Pojedynczy element na liście wydatków (Clean Style)
   Widget _buildExpenseListItem(ExpenseHistoryItem item) {
-    // Karta z półprzezroczystym tłem (szkło/bubble effect)
-    final cardBackgroundColor = Colors.white.withOpacity(0.7);
     final currencyFormat =
         NumberFormat.currency(locale: 'pl_PL', symbol: 'PLN');
 
     Color amountColor = textColor;
+    String prefix = '';
     if (item.payerId == _currentUserId && item.participantsIds.length > 1) {
-      amountColor = Colors.green[800]!;
+      amountColor = Colors.green;
+      prefix = '+';
     } else if (item.participantsIds.contains(_currentUserId) &&
         item.payerId != _currentUserId) {
-      amountColor = Colors.red[800]!;
+      amountColor = Colors.red;
+      prefix = '-';
     }
 
-    final displayAmount = currencyFormat.format(item.amount);
+    final displayAmount = "$prefix${currencyFormat.format(item.amount)}";
     final bool isMarkedAsPaid = _mockMarkedAsPaid.contains(item.id);
     final bool isConfirmed = _mockConfirmedReceived.contains(item.id);
 
     bool showActions = false;
     Widget? actionButton;
 
-    // --- LOGIKA PRZYCISKÓW I STATUSÓW ---
-
-    if (_selectedToggleIndex == 1) {
-      // OWED
+    // --- LOGIKA PRZYCISKÓW ---
+    if (_selectedToggleIndex == 1) { // Owed
       showActions = true;
       if (isMarkedAsPaid) {
-        actionButton = Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.orange.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.hourglass_top_rounded,
-                  size: 18, color: Colors.orange[800]),
-              const SizedBox(width: 8),
-              Text(
-                "Waiting for confirmation",
-                style: TextStyle(
-                  color: Colors.orange[800],
-                  fontWeight: FontWeight.bold,
-                  fontFamily: appFontFamily,
-                  fontSize: 13,
-                ),
-              ),
-            ],
-          ),
-        );
+        actionButton = _buildStatusBadge("Waiting for approval", Colors.orange);
       } else {
-        actionButton = ElevatedButton.icon(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: primaryColor,
-            foregroundColor: Colors.white,
-            elevation: 2,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          ),
-          icon: const Icon(Icons.send_rounded, size: 18),
-          label: const Text("Mark as Paid",
-              style: TextStyle(
-                  fontFamily: appFontFamily, fontWeight: FontWeight.bold)),
-          onPressed: () {
-            setState(() {
-              _mockMarkedAsPaid.add(item.id);
-            });
-          },
-        );
+        actionButton = _buildActionButton("Mark as Paid", Icons.send_rounded, () {
+          setState(() { _mockMarkedAsPaid.add(item.id); });
+        });
       }
-    } else if (_selectedToggleIndex == 2) {
-      // LENT
+    } else if (_selectedToggleIndex == 2) { // Lent
       showActions = true;
       if (isConfirmed) {
-        actionButton = Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.green.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: const [
-              Icon(Icons.check_circle_rounded, size: 18, color: Colors.green),
-              SizedBox(width: 8),
-              Text("Settled",
-                  style: TextStyle(
-                      color: Colors.green,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: appFontFamily)),
-            ],
-          ),
-        );
+        actionButton = _buildStatusBadge("Settled", Colors.green);
       } else {
-        actionButton = ElevatedButton.icon(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: primaryColor,
-            foregroundColor: Colors.white,
-            elevation: 2,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          ),
-          icon: const Icon(Icons.thumb_up_alt_rounded, size: 18),
-          label: const Text("Confirm Receipt",
-              style: TextStyle(
-                  fontFamily: appFontFamily, fontWeight: FontWeight.bold)),
-          onPressed: () {
-            setState(() {
-              _mockConfirmedReceived.add(item.id);
-            });
-          },
-        );
+        actionButton = _buildActionButton("Confirm Receipt", Icons.thumb_up_rounded, () {
+          setState(() { _mockConfirmedReceived.add(item.id); });
+        });
       }
     }
 
@@ -676,68 +645,58 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       padding: const EdgeInsets.all(16),
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: cardBackgroundColor,
-        borderRadius: BorderRadius.circular(20),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
         boxShadow: [
           BoxShadow(
-            color: textColor.withOpacity(0.08),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: textColor.withOpacity(0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Column(
         children: [
-          // GÓRA KARTY
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // LEWA STRONA (Expanded naprawia overflow)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: surfaceColor,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.receipt_long_rounded, color: textColor, size: 24),
+              ),
+              const SizedBox(width: 16),
               Expanded(
-                child: Row(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const CircleAvatar(
-                      backgroundColor: primaryColor,
-                      child: Icon(Icons.shopping_bag_outlined,
-                          color: Colors.white, size: 22),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item.description,
-                            style: const TextStyle(
-                              color: textColor,
-                              fontWeight: FontWeight.w900,
-                              fontSize: 17,
-                              fontFamily: appFontFamily,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _getSubtext(item),
-                            style: const TextStyle(
-                              color: lightTextColor,
-                              fontSize: 13,
-                              fontFamily: appFontFamily,
-                              height: 1.2,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
+                    Text(
+                      item.description,
+                      style: const TextStyle(
+                        color: textColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        fontFamily: appFontFamily,
                       ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _getSubtext(item),
+                      style: const TextStyle(
+                        color: lightTextColor, 
+                        fontSize: 12,
+                        fontFamily: appFontFamily,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 10),
-              // PRAWA STRONA
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -745,29 +704,30 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     displayAmount,
                     style: TextStyle(
                       color: amountColor,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w800,
                       fontSize: 16,
                       fontFamily: appFontFamily,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    DateFormat('dd.MM.yyyy').format(item.date),
+                    DateFormat('dd MMM').format(item.date),
                     style: const TextStyle(
-                        color: lightTextColor,
-                        fontSize: 12,
-                        fontFamily: appFontFamily),
+                      color: lightTextColor, 
+                      fontSize: 12,
+                      fontFamily: appFontFamily,
+                    ),
                   ),
                 ],
               ),
             ],
           ),
 
-          // DÓŁ KARTY (Akcje)
           if (showActions) ...[
-            const SizedBox(height: 16),
-            Divider(color: lightTextColor.withOpacity(0.3), height: 1),
-            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Divider(color: borderColor, height: 1),
+            ),
             Align(
               alignment: Alignment.centerRight,
               child: actionButton ?? const SizedBox(),
@@ -775,6 +735,48 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildStatusBadge(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.circle, size: 8, color: color),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+              fontFamily: appFontFamily,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton(String label, IconData icon, VoidCallback onPressed) {
+    return TextButton.icon(
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        foregroundColor: primaryColor,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: primaryColor),
+        ),
+      ),
+      icon: Icon(icon, size: 18),
+      label: Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: appFontFamily)),
     );
   }
 }

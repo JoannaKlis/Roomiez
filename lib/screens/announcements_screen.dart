@@ -12,6 +12,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_storage/firebase_storage.dart' show SettableMetadata;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:typed_data';
+import '../widgets/menu_bar.dart' as mb; // Import drawera
 
 class AnnouncementsScreen extends StatefulWidget {
   static const String id = 'announcements_screen';
@@ -137,7 +138,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
         createdById: _creatorId,
         createdByName: _creatorName,
         createdAt: DateTime.now(),
-        imageUrls: imageUrls, // NEW
+        imageUrls: imageUrls,
       );
 
       // 3. Zapisz w Firestore
@@ -169,7 +170,11 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: backgroundColor,
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           title: Text(
             announcement.title,
             style: const TextStyle(
@@ -181,12 +186,15 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
           content: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   announcement.body,
                   style: const TextStyle(
                     color: textColor,
                     fontFamily: appFontFamily,
+                    fontSize: 15,
+                    height: 1.5,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -199,7 +207,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                       separatorBuilder: (_, __) => const SizedBox(width: 8),
                       itemBuilder: (context, index) {
                         return ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(12),
                           child: Image.network(
                             announcement.imageUrls[index],
                             width: 160,
@@ -213,21 +221,28 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                   const SizedBox(height: 16),
                 ],
                 const SizedBox(height: 16),
-                Text(
-                  'Posted by ${announcement.createdByName}',
-                  style: const TextStyle(
-                    color: lightTextColor,
-                    fontFamily: appFontFamily,
-                    fontSize: 13,
-                  ),
-                ),
-                Text(
-                  DateFormat('dd.MM.yyyy HH:mm').format(announcement.createdAt),
-                  style: const TextStyle(
-                    color: lightTextColor,
-                    fontFamily: appFontFamily,
-                    fontSize: 12,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'By ${announcement.createdByName}',
+                      style: const TextStyle(
+                        color: lightTextColor,
+                        fontFamily: appFontFamily,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      DateFormat('dd.MM.yyyy HH:mm')
+                          .format(announcement.createdAt),
+                      style: const TextStyle(
+                        color: lightTextColor,
+                        fontFamily: appFontFamily,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -237,7 +252,11 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
               onPressed: () => Navigator.of(context).pop(),
               child: const Text(
                 'Close',
-                style: TextStyle(fontFamily: appFontFamily),
+                style: TextStyle(
+                  fontFamily: appFontFamily,
+                  color: primaryColor,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],
@@ -252,7 +271,6 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
       if (!mounted || images == null) return;
 
       if (kIsWeb) {
-        // On web: read bytes for preview & upload
         final bytesList = <Uint8List>[];
         for (final img in images) {
           bytesList.add(await img.readAsBytes());
@@ -263,7 +281,6 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
           _selectedImageBytes = bytesList;
         });
       } else {
-        // On mobile: we can use File(path)
         setState(() {
           _selectedImages = images;
           _selectedImageBytes = [];
@@ -296,14 +313,12 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
       UploadTask uploadTask;
 
       if (kIsWeb) {
-        // Web: upload bytes
         final data = _selectedImageBytes[i];
         uploadTask = ref.putData(
           data,
           SettableMetadata(contentType: 'image/jpeg'),
         );
       } else {
-        // Mobile/desktop: upload a File
         final file = File(_selectedImages[i].path);
         uploadTask = ref.putFile(file);
       }
@@ -316,45 +331,81 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
     return urls;
   }
 
+  // --- UI WIDGETS (Clean Style) ---
+
   Widget _buildHeaderCard() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: accentColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: textColor, width: 2),
+        color: Colors.white, // JASNE TŁO
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: borderColor), // Delikatna ramka
+        boxShadow: [
+          BoxShadow(
+            color: textColor.withOpacity(0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Group announcements',
-                  style: TextStyle(
-                    color: textColor,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    fontFamily: appFontFamily,
-                  ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Announcements',
+                style: TextStyle(
+                  color: lightTextColor,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                  fontFamily: appFontFamily,
                 ),
-                Text(
-                  'Post important info for your roommates',
-                  style: TextStyle(
-                    color: lightTextColor,
-                    fontSize: 13,
-                    fontFamily: appFontFamily,
-                  ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'What\'s new?',
+                style: const TextStyle(
+                  color: textColor,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  fontFamily: appFontFamily,
+                  letterSpacing: -0.5,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          ElevatedButton(
-            onPressed: _toggleForm,
-            child: Text(_isFormVisible ? 'Cancel' : 'New'),
+          // Przycisk "+" (Action Button)
+          Material(
+            color: primaryColor,
+            borderRadius: BorderRadius.circular(16),
+            child: InkWell(
+              onTap: _toggleForm,
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  children: [
+                    Icon(
+                      _isFormVisible ? Icons.close : Icons.add,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _isFormVisible ? 'Close' : 'New',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: appFontFamily,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -363,76 +414,94 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
 
   Widget _buildNewAnnouncementForm() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: accentColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: textColor, width: 2),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: textColor.withOpacity(0.03),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: Column(
         children: [
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: Text("New Post",
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: textColor,
+                    fontFamily: appFontFamily)),
+          ),
+          const SizedBox(height: 16),
           TextField(
             controller: _titleController,
             decoration: InputDecoration(
-              labelText: 'Title',
-              labelStyle: const TextStyle(
-                color: textColor,
-                fontFamily: appFontFamily,
-              ),
+              hintText: 'Title',
+              prefixIcon: const Icon(Icons.title, color: lightTextColor),
+              hintStyle: TextStyle(color: textColor.withOpacity(0.5)),
               filled: true,
-              fillColor: primaryColor.withAlpha(38),
+              fillColor: surfaceColor,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8.0),
+                borderRadius: BorderRadius.circular(12.0),
                 borderSide: BorderSide.none,
               ),
             ),
-            style: const TextStyle(
-              color: textColor,
-              fontFamily: appFontFamily,
-            ),
+            style: const TextStyle(color: textColor, fontFamily: appFontFamily),
           ),
           const SizedBox(height: 10),
           TextField(
             controller: _bodyController,
             maxLines: 4,
             decoration: InputDecoration(
-              labelText: 'Message',
-              labelStyle: const TextStyle(
-                color: textColor,
-                fontFamily: appFontFamily,
-              ),
-              alignLabelWithHint: true,
+              hintText: 'Write your message here...',
+              hintStyle: TextStyle(color: textColor.withOpacity(0.5)),
               filled: true,
-              fillColor: primaryColor.withAlpha(38),
+              fillColor: surfaceColor,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8.0),
+                borderRadius: BorderRadius.circular(12.0),
                 borderSide: BorderSide.none,
               ),
             ),
-            style: const TextStyle(
-              color: textColor,
-              fontFamily: appFontFamily,
-            ),
+            style: const TextStyle(color: textColor, fontFamily: appFontFamily),
           ),
           const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: _pickImages,
-              icon: const Icon(Icons.photo_library, color: textColor),
-              label: Text(
-                _selectedImages.isEmpty
-                    ? 'Add photos (optional)'
-                    : 'Change photos (${_selectedImages.length})',
-                style: const TextStyle(
-                  color: textColor,
-                  fontFamily: appFontFamily,
-                ),
+          InkWell(
+            onTap: _pickImages,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: surfaceColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.photo_library_rounded,
+                      color: primaryColor, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    _selectedImages.isEmpty
+                        ? 'Add photos'
+                        : '${_selectedImages.length} photos selected',
+                    style: const TextStyle(
+                      color: primaryColor,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: appFontFamily,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
           if (_selectedImages.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             SizedBox(
               height: 70,
               child: ListView.separated(
@@ -441,7 +510,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                 separatorBuilder: (_, __) => const SizedBox(width: 8),
                 itemBuilder: (context, index) {
                   return ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(12),
                     child: kIsWeb
                         ? Image.memory(
                             _selectedImageBytes[index],
@@ -460,12 +529,12 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
               ),
             ),
           ],
-          const SizedBox(height: 12),
+          const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
               onPressed: _submitAnnouncement,
-              child: const Text('Post announcement'),
+              child: const Text('Post Announcement'),
             ),
           ),
         ],
@@ -479,14 +548,14 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
-            child: CircularProgressIndicator(),
+            child: CircularProgressIndicator(color: primaryColor),
           );
         }
 
         if (snapshot.hasError) {
           return Center(
             child: Text(
-              'Error loading announcements: ${snapshot.error}',
+              'Error loading announcements',
               style: const TextStyle(color: Colors.red),
             ),
           );
@@ -495,47 +564,65 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
         final announcements = snapshot.data ?? [];
 
         if (announcements.isEmpty) {
-          return const Center(
-            child: Text(
-              'No announcements yet.\nBe the first to post one!',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: lightTextColor,
-                fontFamily: appFontFamily,
-              ),
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.campaign_outlined,
+                    size: 64, color: lightTextColor.withOpacity(0.3)),
+                const SizedBox(height: 16),
+                const Text(
+                  'No announcements yet.\nBe the first to post one!',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: lightTextColor,
+                    fontFamily: appFontFamily,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
             ),
           );
         }
 
         return ListView.separated(
+          padding: const EdgeInsets.only(bottom: 40),
           itemCount: announcements.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
             final announcement = announcements[index];
             return GestureDetector(
               onTap: () => _showAnnouncementDetails(announcement),
               child: Container(
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: accentColor,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: textColor, width: 2),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: borderColor),
+                  boxShadow: [
+                    BoxShadow(
+                      color: textColor.withOpacity(0.02),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: primaryColor,
-                        borderRadius: BorderRadius.circular(8),
+                        color: surfaceColor,
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(
-                        Icons.campaign_outlined,
-                        color: Colors.white,
+                        Icons.campaign_rounded,
+                        color: primaryColor,
+                        size: 24,
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 16),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -551,34 +638,36 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            announcement.body.length > 120
-                                ? '${announcement.body.substring(0, 120)}...'
-                                : announcement.body,
+                            announcement.body,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              color: textColor,
+                              color: lightTextColor,
                               fontFamily: appFontFamily,
-                              fontSize: 14,
+                              fontSize: 13,
+                              height: 1.4,
                             ),
                           ),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 8),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
                                 announcement.createdByName,
                                 style: const TextStyle(
-                                  color: lightTextColor,
+                                  color: primaryColor,
                                   fontFamily: appFontFamily,
-                                  fontSize: 12,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
                               Text(
-                                DateFormat('dd.MM.yyyy HH:mm')
+                                DateFormat('dd MMM')
                                     .format(announcement.createdAt),
                                 style: const TextStyle(
                                   color: lightTextColor,
                                   fontFamily: appFontFamily,
-                                  fontSize: 12,
+                                  fontSize: 11,
                                 ),
                               ),
                             ],
@@ -586,6 +675,18 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                         ],
                       ),
                     ),
+                    if (announcement.imageUrls.isNotEmpty) ...[
+                      const SizedBox(width: 12),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          announcement.imageUrls[0],
+                          width: 50,
+                          height: 50,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ]
                   ],
                 ),
               ),
@@ -602,50 +703,66 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
       backgroundColor: backgroundColor,
       appBar: AppBar(
         backgroundColor: backgroundColor,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
-        iconTheme: const IconThemeData(color: textColor),
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu_rounded, size: 28, color: textColor),
+            onPressed: () {
+              Scaffold.of(context).openDrawer();
+            },
+          ),
+        ),
         title: Column(
           children: [
             const Text(
               'ROOMIES',
               style: TextStyle(
-                color: textColor,
-                fontFamily: appFontFamily,
+                color: primaryColor,
+                fontFamily: 'StackSansNotch',
                 fontWeight: FontWeight.w900,
-                letterSpacing: 1.2,
+                letterSpacing: 0.5,
                 fontSize: 20,
               ),
             ),
             Text(
-              _groupName,
+              _groupName.isNotEmpty ? _groupName.toUpperCase() : '',
               style: const TextStyle(
                 color: lightTextColor,
                 fontFamily: appFontFamily,
-                fontSize: 13,
+                fontSize: 10,
                 fontWeight: FontWeight.bold,
+                letterSpacing: 1.0,
               ),
             ),
           ],
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_none_rounded,
+                size: 28, color: textColor),
+            onPressed: () {},
+          ),
+        ],
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20),
         child: Column(
           children: [
-            const Align(
-              alignment: Alignment.centerLeft,
+            const Center(
               child: Text(
-                'Announcements',
+                'Updates',
                 style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.w800,
                   color: textColor,
                   fontFamily: appFontFamily,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
+                  letterSpacing: -1.0,
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             _buildHeaderCard(),
             const SizedBox(height: 10),
             AnimatedSize(
@@ -667,6 +784,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
           ],
         ),
       ),
+      drawer: mb.CustomDrawer(roomName: _groupName, groupId: _userGroupId),
     );
   }
 }

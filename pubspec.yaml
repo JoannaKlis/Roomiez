@@ -27,6 +27,13 @@ flutter:
   uses-material-design: true
 
   fonts:
-    - family: Baloo Bhai # Ta nazwa musi być IDENTYCZNA jak w constants.dart
+    - family: Inter # Ta nazwa musi być IDENTYCZNA jak w constants.dart
       fonts:
-        - asset: assets/fonts/Baloo Bhai Regular 400.ttf # Tu musi być dokładna nazwa pliku który wrzuciłaś
+        - asset: assets/fonts/Inter-VariableFont_opsz,wght.ttf # Tu musi być dokładna nazwa pliku który wrzuciłaś
+
+    - family: StackSansNotch
+      fonts:
+        - asset: assets/fonts/StackSansNotch-VariableFont_wght.ttf
+
+  assets:
+   - assets/images/logo_roomies.png

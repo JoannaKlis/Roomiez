@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../constants.dart';
-import '../widgets/custom_button.dart';
-import '../widgets/custom_text_field.dart';
+// import '../widgets/custom_button.dart'; // Już niepotrzebne, używamy stylu globalnego
+// import '../widgets/custom_text_field.dart'; // Już niepotrzebne, używamy stylu globalnego
 import 'registration_screen.dart';
 import 'package:roomies/services/auth_service.dart';
 import 'dashboard_screen.dart';
@@ -22,7 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final AuthService _authService = AuthService();
   final FirestoreService _firestoreService = FirestoreService();
 
-  // funkcja do obsługi logowania
+  // funkcja do obsługi logowania (BEZ ZMIAN LOGIKI)
   void _handleLogin() async {
     // walidacja pustych pól
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
@@ -37,26 +37,29 @@ class _LoginScreenState extends State<LoginScreen> {
     );
 
     if (errorMessage == null) {
-    final groupId = await _firestoreService.getCurrentUserGroupId();
-    final name = await _firestoreService.getGroupName(groupId);
+      final groupId = await _firestoreService.getCurrentUserGroupId();
+      final name = await _firestoreService.getGroupName(groupId);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Login successful!'),
-            backgroundColor: Colors.green,
+            backgroundColor: primaryColor, // Zmiana na primaryColor dla spójności
             behavior: SnackBarBehavior.floating,
-            duration: Duration(milliseconds: 500),
+            duration: Duration(milliseconds: 1500),
           ),
         );
-        //Future.delayed(const Duration(milliseconds: 500), () {
+        
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => groupId != "default_group"
-          ? HomeScreen(roomName: name, groupId: groupId,)
-          : const DashboardScreen(),),
-          //jeśli już ma groupId to nie pokazuj ekranu z dołączeniem/tworzeniem miejsca, jak będzie ekran 5
+          MaterialPageRoute(
+            builder: (context) => groupId != "default_group"
+                ? HomeScreen(
+                    roomName: name,
+                    groupId: groupId,
+                  )
+                : const DashboardScreen(),
+          ),
         );
-      //});
       }
     } else {
       // błąd logowania
@@ -78,115 +81,175 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: backgroundColor,
-      body: CustomScrollView(
-        slivers: <Widget>[
-          SliverAppBar(
-            backgroundColor: backgroundColor,
-            elevation: 0,
-            floating: true,
-            // strzałka powrotu
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: textColor),
-              onPressed: () => Navigator.pop(context),
+      body: SafeArea(
+        child: CustomScrollView(
+          slivers: <Widget>[
+            // Pasek nawigacji (powrót)
+            SliverAppBar(
+              backgroundColor: backgroundColor,
+              elevation: 0,
+              floating: true,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: textColor), // Nowocześniejsza strzałka
+                onPressed: () => Navigator.pop(context),
+              ),
             ),
-          ),
-          SliverList(
-            delegate: SliverChildListDelegate(
-              [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 30.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: <Widget>[
-                      // Logo i tytuł
-                      const Center(
-                        child: Column(
-                          children: [
-                            Icon(Icons.house, size: 80.0, color: textColor),
-                            SizedBox(height: 10),
-                            Text('ROOMIES',
-                                style: TextStyle(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.bold,
-                                    color: textColor)),
-                            SizedBox(height: 20),
-                            Text('Welcome back!',
-                                style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: textColor)),
-                            SizedBox(height: 5),
-                            Text('Please enter your details to log in.',
-                                style: TextStyle(
-                                    fontSize: 14, color: lightTextColor)),
-                            SizedBox(height: 40),
-                          ],
+            
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate(
+                  [
+                    const SizedBox(height: 10),
+                    
+                    // --- SEKCJA NAGŁÓWKA ---
+                    Center(
+                      child: Column(
+                        children: [
+                          // Logo (spójne z WelcomeScreen)
+                          Image.asset(
+                            'assets/images/logo_roomies.png',
+                            width: 100, // Nieco mniejsze niż na WelcomeScreen
+                            height: 100,
+                          ),
+                          // Napis ROOMIES (Logotyp)
+                          const Text(
+                            'ROOMIES',
+                            style: TextStyle(
+                              fontFamily: 'StackSansNotch', // Twoja czcionka firmowa
+                              fontSize: 28,
+                              fontWeight: FontWeight.w900,
+                              color: primaryColor,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 30),
+                          
+                          // Powitanie
+                          const Text(
+                              'Welcome back!',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: textColor,
+                                letterSpacing: -0.5,
+                              ),
+                            ),
+                          
+                          const SizedBox(height: 8),
+                          const Text(
+                              'Please enter your details to log in.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: lightTextColor,
+                              ),
+                            ),
+                          
+                        ],
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 30),
+
+                    // --- FORMULARZ (Inputy biorą styl z main.dart) ---
+                    
+                    // Email
+                    const Text("Email address", style: TextStyle(fontWeight: FontWeight.w600, color: textColor)),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                        hintText: 'Enter your email',
+                        prefixIcon: Icon(Icons.email_outlined, color: lightTextColor),
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 20),
+                    
+                    // Hasło
+                    const Text("Password", style: TextStyle(fontWeight: FontWeight.w600, color: textColor)),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _passwordController,
+                      obscureText: true,
+                      decoration: const InputDecoration(
+                        hintText: 'Enter your password',
+                        prefixIcon: Icon(Icons.lock_outline_rounded, color: lightTextColor),
+                      ),
+                    ),
+
+                    // Link "Forgot Password"
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () {},
+                        style: TextButton.styleFrom(
+                          foregroundColor: lightTextColor,
                         ),
+                        child: const Text('Forgot password?'),
                       ),
-                      // wprowadzanie danych (email, hasło)
-                      CustomTextField(
-                        controller: _emailController,
-                        label: 'Email address',
-                        hint: 'Enter your email address',
-                      ),
-                      const SizedBox(height: 20),
-                      CustomTextField(
-                        controller: _passwordController,
-                        label: 'Password',
-                        hint: 'Enter your password',
-                        isPassword: true,
-                      ),
-                      // Link "zapomniałem hasła"
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: () {},
-                          child: const Text('Forgot your password?',
-                              style: TextStyle(color: textColor)),
-                        ),
-                      ),
-                      const SizedBox(height: 50),
-                      // Regulamin i polityka prywatności
-                      const Text(
-                        'By signing in, you agree to our Terms of Service and Privacy Policy',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 12, color: lightTextColor),
-                      ),
-                      const SizedBox(height: 15),
-                      // Przycisk logowania
-                      CustomButton(
-                        text: 'Log In',
-                        isPrimary: true,
+                    ),
+
+                    const SizedBox(height: 30),
+
+                    // --- PRZYCISK LOGOWANIA ---
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
                         onPressed: _handleLogin,
+                        child: const Text('Log In'),
                       ),
-                      const SizedBox(height: 30),
-                      // Link do rejestracji
-                      Center(
-                        child: TextButton(
-                          onPressed: () {
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // --- LINK DO REJESTRACJI ---
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text(
+                          "Don't have an account? ",
+                          style: TextStyle(color: lightTextColor),
+                        ),
+                        GestureDetector(
+                          onTap: () {
                             Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (context) =>
-                                        const RegistrationScreen()));
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) =>
+                                      const RegistrationScreen()),
+                            );
                           },
                           child: const Text(
-                            "Don't have an account? Create one!",
+                            "Create one",
                             style: TextStyle(
-                              color: textColor,
+                              color: primaryColor,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 30),
-                    ],
-                  ),
+                      ],
+                    ),
+                    
+                    const SizedBox(height: 20),
+                    
+                    // Regulamin (Mały druk na dole)
+                    const Text(
+                      'By signing in, you agree to our Terms of Service and Privacy Policy',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12, color: lightTextColor),
+                    ),
+                    
+                    const SizedBox(height: 40),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

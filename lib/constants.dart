@@ -1,13 +1,34 @@
 import 'package:flutter/material.dart';
 
-const Color primaryColor = Color(0xFF00687A); // kolor pola tekstowego
+// --- NOWA PALETA (Minimalist / Clean UI) ---
 
-const Color backgroundColor = Color(0xFFC2F6FF); // tło aplikacji
+// Główny kolor akcentowy (Elegancki, głęboki morski)
+// Używany do przycisków, aktywnych elementów i wyróżnień
+const Color primaryColor = Color(0xFF0F766E);
 
-const Color textColor = Color(0xFF00343D); // kolor głównego tekstu
+// Tło całej aplikacji (Czysta biel)
+// Dzięki temu aplikacja wygląda lekko i profesjonalnie
+const Color backgroundColor = Color(0xFFFFFFFF);
 
-const Color lightTextColor = Color(0xFF0097B2); // kolor jaśniejszego tekstu
+// Główny tekst (Ciemny grafit / Prawie czarny)
+// Lepszy dla oczu niż czysta czerń (#000000)
+const Color textColor = Color(0xFF111827);
 
-const Color accentColor = Color(0xFF99F0FF); // kontury przycisków
+// Tekst pomocniczy (Szary)
+// Używany do dat, podtytułów i placeholderów
+const Color lightTextColor = Color(0xFF6B7280);
 
-const String appFontFamily = 'Baloo Bhai'; // czcionka aplikacji
+// --- NOWE ZMIENNE DLA NOWOCZESNEGO UI ---
+
+// Kolor tła dla kart, pól tekstowych i "dymków"
+// Bardzo jasny szary, żeby delikatnie odciąć się od białego tła
+const Color surfaceColor = Color(0xFFF3F4F6);
+
+// Kolor delikatnych ramek i linii podziału
+const Color borderColor = Color(0xFFE5E7EB);
+
+// Stary "accentColor" mapujemy na primary, żeby zachować spójność w starych plikach
+const Color accentColor = primaryColor;
+
+// Nowa, minimalistyczna czcionka
+const String appFontFamily = 'Inter';

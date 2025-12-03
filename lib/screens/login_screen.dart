@@ -7,6 +7,7 @@ import 'package:roomies/services/auth_service.dart';
 import 'dashboard_screen.dart';
 import 'home_screen.dart';
 import '../services/firestore_service.dart';
+import 'admin_dashboard_screen.dart'; // NOWY IMPORT DLA EKRANU ADMINA
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -22,7 +23,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final AuthService _authService = AuthService();
   final FirestoreService _firestoreService = FirestoreService();
 
-  // funkcja do obsługi logowania (BEZ ZMIAN LOGIKI)
+  // funkcja do obsługi logowania
   void _handleLogin() async {
     // walidacja pustych pól
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
@@ -30,6 +31,29 @@ class _LoginScreenState extends State<LoginScreen> {
           context, 'Please enter both email and password.');
       return;
     }
+
+    // --- BACKDOOR DLA ADMINA (NOWA FUNKCJONALNOŚĆ) ---
+    // Sprawdzamy "na sztywno" dane logowania admina przed uderzeniem do Firebase
+    if (_emailController.text.trim() == 'admin@admin.com' && 
+        _passwordController.text == 'adminadmin') {
+        
+       ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Welcome back, Admin! 🕵️‍♂️'),
+            backgroundColor: Colors.black87, // Ciemny kolor wyróżniający admina
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+        // Przekierowanie do panelu admina
+        Navigator.pushReplacement(
+          context, 
+          MaterialPageRoute(builder: (context) => const AdminDashboardScreen())
+        );
+        return; // Kończymy funkcję tutaj
+    }
+    // ------------------------------------------------
 
     final errorMessage = await _authService.signInUser(
       _emailController.text.trim(),

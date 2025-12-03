@@ -61,6 +61,8 @@ class FirestoreService {
       } while (groups.contains(groupId));
       await _firestore.collection('groups').doc(groupId).set({
         'name': Name,
+        'createdAt': FieldValue.serverTimestamp(), // Dodano timestamp dla admina
+        'status': 'Active', // Dodano domyślny status dla admina
       });
       await _firestore.collection('users').doc(userId).update({
         'role': UserRole.apartmentManager,
@@ -82,6 +84,7 @@ class FirestoreService {
       }
       await _firestore.collection('users').doc(userId).update({
         'groupId': groupId,
+        'role': 'Member', // Domyślna rola
       });
       return true;
     } catch (e) {
@@ -212,6 +215,70 @@ class FirestoreService {
             .map((doc) => Announcement.fromMap(doc.data(), doc.id))
             .toList();
       });
+    });
+  }
+
+  // ==============================
+  // ADMIN FEATURES (NOWOŚĆ)
+  // ==============================
+
+  // 1. Pobierz strumień wszystkich grup (do Dashboardu Admina)
+  Stream<List<Map<String, dynamic>>> getAllGroupsStream() {
+    return _firestore.collection('groups').snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id; // Dodajemy ID dokumentu do danych
+        // Zabezpieczenie jeśli nie ma pola status
+        if (!data.containsKey('status')) data['status'] = 'Active';
+        // Zabezpieczenie daty
+        if (data['createdAt'] == null) data['createdAt'] = Timestamp.now();
+        return data;
+      }).toList();
+    });
+  }
+
+  // 2. Zmień status grupy (np. Blocked, Active)
+  Future<void> updateGroupStatus(String groupId, String newStatus) async {
+    await _firestore.collection('groups').doc(groupId).update({
+      'status': newStatus,
+    });
+  }
+
+  // 3. Pobierz członków konkretnej grupy (dla Admina)
+  Stream<List<Map<String, dynamic>>> getGroupMembersStream(String groupId) {
+    // Szukamy userów, którzy mają pole 'groupId' równe podanemu ID
+    return _firestore
+        .collection('users')
+        .where('groupId', isEqualTo: groupId)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        data['uid'] = doc.id; // ID użytkownika
+        // Domyślna rola jeśli brak
+        if (!data.containsKey('role')) data['role'] = 'Member';
+        // Sklejamy imię
+        if (!data.containsKey('name')) {
+             data['name'] = '${data['firstName'] ?? ''} ${data['lastName'] ?? ''}'.trim();
+             if (data['name'].isEmpty) data['name'] = 'Unknown User';
+        }
+        return data;
+      }).toList();
+    });
+  }
+
+  // 4. Zmień rolę użytkownika (Admin/Member)
+  Future<void> updateUserRole(String userId, String newRole) async {
+    await _firestore.collection('users').doc(userId).update({
+      'role': newRole,
+    });
+  }
+
+  // 5. Usuń użytkownika z grupy (czyści jego groupId)
+  Future<void> removeUserFromGroup(String userId) async {
+    await _firestore.collection('users').doc(userId).update({
+      'groupId': FieldValue.delete(), // Usuwamy pole groupId
+      'role': FieldValue.delete(), // Usuwamy rolę
     });
   }
 }

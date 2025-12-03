@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Do kopiowania (Clipboard)
 import 'package:firebase_auth/firebase_auth.dart';
 import '../constants.dart';
-import '../screens/home_screen.dart'; // Import konieczny do nawigacji
+import '../screens/home_screen.dart'; 
 import '../screens/tasks_screen.dart';
 import '../screens/expenses_screen.dart';
 import '../screens/login_screen.dart';
+import '../screens/members_screen.dart';
+import '../screens/shopping_list_screen.dart'; // <--- DODANO: Import listy zakupów
 
 class NavigationMenuScreen extends StatelessWidget {
   final String groupId;
@@ -161,7 +163,7 @@ class NavigationMenuScreen extends StatelessWidget {
                   _DrawerItem(
                     icon: Icons.dashboard_rounded,
                     label: 'Dashboard',
-                    isActive: currentRoute == 'dashboard', // Dynamiczne podświetlenie
+                    isActive: currentRoute == 'dashboard',
                     onTap: () {
                       Navigator.pop(context); // 1. Zamykamy drawer
                       
@@ -178,7 +180,6 @@ class NavigationMenuScreen extends StatelessWidget {
                           (route) => false, // Czyści historię wstecz
                         );
                       }
-                      // Jeśli currentRoute == 'dashboard', nic więcej się nie dzieje (tylko zamknięcie drawera)
                     },
                   ),
                   
@@ -212,14 +213,19 @@ class NavigationMenuScreen extends StatelessWidget {
                     },
                   ),
                   
-                  // --- SHOPPING LIST ---
+                  // --- SHOPPING LIST (TERAZ DZIAŁA!) ---
                   _DrawerItem(
                     icon: Icons.shopping_cart_outlined,
                     label: 'Shopping List',
                     isActive: currentRoute == 'shopping',
                     onTap: () {
                       Navigator.pop(context);
-                      // TODO: Ekran listy zakupów
+                      if (currentRoute != 'shopping') {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const ShoppingScreen()),
+                        );
+                      }
                     },
                   ),
                   
@@ -230,7 +236,12 @@ class NavigationMenuScreen extends StatelessWidget {
                     isActive: currentRoute == 'members',
                     onTap: () {
                       Navigator.pop(context);
-                      // TODO: Ekran członków
+                      if (currentRoute != 'members') {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const MembersScreen()),
+                        );
+                      }
                     },
                   ),
                 ],

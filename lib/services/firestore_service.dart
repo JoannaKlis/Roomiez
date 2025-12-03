@@ -219,7 +219,57 @@ class FirestoreService {
   }
 
   // ==============================
-  // ADMIN FEATURES (NOWOŚĆ)
+  // SHOPPING LIST (NOWOŚĆ)
+  // ==============================
+
+  // 1. Dodaj produkt
+  Future<void> addShoppingItem(String name, bool isPriority) async {
+    final groupId = await getCurrentUserGroupId();
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+
+    await _firestore.collection('shopping_items').add({
+      'name': name,
+      'isPriority': isPriority,
+      'isBought': false,
+      'groupId': groupId,
+      'createdAt': FieldValue.serverTimestamp(),
+      'addedBy': userId,
+    });
+  }
+
+  // 2. Pobierz listę zakupów
+  Stream<List<Map<String, dynamic>>> getShoppingList() {
+    return Stream.fromFuture(getCurrentUserGroupId()).asyncExpand((groupId) {
+      return _firestore
+          .collection('shopping_items')
+          .where('groupId', isEqualTo: groupId)
+          .orderBy('isBought', descending: false) // Nie kupione na górze
+          .orderBy('createdAt', descending: true) // Najnowsze na górze
+          .snapshots()
+          .map((snapshot) {
+        return snapshot.docs.map((doc) {
+          final data = doc.data();
+          data['id'] = doc.id; // Dodajemy ID dokumentu do mapy
+          return data;
+        }).toList();
+      });
+    });
+  }
+
+  // 3. Zmień status (Kupione/Niekupione)
+  Future<void> toggleShoppingItemStatus(String itemId, bool currentStatus) async {
+    await _firestore.collection('shopping_items').doc(itemId).update({
+      'isBought': !currentStatus,
+    });
+  }
+
+  // 4. Usuń produkt
+  Future<void> deleteShoppingItem(String itemId) async {
+    await _firestore.collection('shopping_items').doc(itemId).delete();
+  }
+
+  // ==============================
+  // ADMIN FEATURES
   // ==============================
 
   // 1. Pobierz strumień wszystkich grup (do Dashboardu Admina)

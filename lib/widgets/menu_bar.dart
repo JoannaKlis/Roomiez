@@ -2,23 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../constants.dart';
-// Importujemy ekrany
+
+// --- IMPORTY EKRANÓW ---
+import '../screens/home_screen.dart'; 
 import '../screens/tasks_screen.dart';
 import '../screens/expenses_screen.dart';
 import '../screens/login_screen.dart';
-import '../screens/home_screen.dart'; // <--- DODANO: Musimy widzieć HomeScreen
+import '../screens/members_screen.dart';
+import '../screens/shopping_list_screen.dart'; // <--- DODANO: Import listy zakupów
 
 class CustomDrawer extends StatelessWidget {
   final String groupId;
   final String roomName;
-  // Parametr opcjonalny (domyślnie pusty)
   final String currentRoute; 
 
   const CustomDrawer({
     super.key,
     required this.groupId,
     required this.roomName,
-    this.currentRoute = '', 
+    this.currentRoute = 'dashboard', 
   });
 
   void _copyToClipboard(BuildContext context) {
@@ -55,13 +57,13 @@ class CustomDrawer extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- NAGŁÓWEK (Bez logo, wyśrodkowany) ---
+            // --- NAGŁÓWEK ---
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 40, 24, 20),
               child: SizedBox(
-                width: double.infinity, // Rozciąga na całą szerokość
+                width: double.infinity,
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center, // Centruje w poziomie
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     const Text(
                       'ROOMIES',
@@ -88,7 +90,7 @@ class CustomDrawer extends StatelessWidget {
               ),
             ),
             
-            // --- INVITE CODE ---
+            // --- KARTA KODU ZAPROSZENIA ---
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               padding: const EdgeInsets.all(12),
@@ -139,34 +141,32 @@ class CustomDrawer extends StatelessWidget {
                 ],
               ),
             ),
-            
-            // --- LISTA MENU ---
-            const SizedBox(height: 10),
+
+            const SizedBox(height: 20),
+
+            // --- LISTA OPCJI ---
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 children: [
-                  // --- DASHBOARD (HOME) ---
+                  // --- DASHBOARD ---
                   _DrawerItem(
                     icon: Icons.dashboard_rounded,
                     label: 'Dashboard',
-                    // Podświetla się, jeśli currentRoute to 'dashboard' lub puste (domyślnie Home)
-                    isActive: currentRoute == 'dashboard' || currentRoute == '', 
+                    isActive: currentRoute == 'dashboard' || currentRoute == '',
                     onTap: () {
-                      Navigator.pop(context); // Zamykamy drawer
-                      
-                      // Jeśli NIE jesteśmy na dashboardzie (tylko np. na Expenses), to nawigujemy
+                      Navigator.pop(context);
                       if (currentRoute != 'dashboard' && currentRoute != '') {
-                         Navigator.pushAndRemoveUntil(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => HomeScreen(
-                                roomName: roomName,
-                                groupId: groupId,
-                              ),
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => HomeScreen(
+                              groupId: groupId,
+                              roomName: roomName,
                             ),
-                            (route) => false, // Czyści historię wstecz
-                         );
+                          ),
+                          (route) => false,
+                        );
                       }
                     },
                   ),
@@ -195,22 +195,25 @@ class CustomDrawer extends StatelessWidget {
                     onTap: () {
                       Navigator.pop(context);
                       if (currentRoute != 'tasks') {
-                        Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => const TasksScreen()));
+                        Navigator.push(context,
+                            MaterialPageRoute(builder: (_) => const TasksScreen()));
                       }
                     },
                   ),
                   
-                  // --- SHOPPING LIST ---
+                  // --- SHOPPING LIST (TERAZ DZIAŁA) ---
                   _DrawerItem(
                     icon: Icons.shopping_cart_outlined,
                     label: 'Shopping List',
                     isActive: currentRoute == 'shopping',
                     onTap: () {
                       Navigator.pop(context);
-                      // Tu dodaj nawigację do ShoppingScreen
+                      if (currentRoute != 'shopping') {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const ShoppingScreen()),
+                        );
+                      }
                     },
                   ),
                   
@@ -221,20 +224,32 @@ class CustomDrawer extends StatelessWidget {
                     isActive: currentRoute == 'members',
                     onTap: () {
                       Navigator.pop(context);
+                      if (currentRoute != 'members') {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const MembersScreen()),
+                        );
+                      }
                     },
                   ),
                 ],
               ),
             ),
+
+            // --- FOOTER (WYLOGOWANIE) ---
             const Divider(color: borderColor, height: 1),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
-              child: _DrawerItem(
-                icon: Icons.logout_rounded,
-                label: 'Log out',
-                textColor: Colors.redAccent,
-                iconColor: Colors.redAccent,
-                onTap: () => _signOut(context),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Column(
+                children: [
+                  _DrawerItem(
+                    icon: Icons.logout_rounded,
+                    label: 'Log out',
+                    textColor: Colors.redAccent,
+                    iconColor: Colors.redAccent,
+                    onTap: () => _signOut(context),
+                  ),
+                ],
               ),
             ),
           ],

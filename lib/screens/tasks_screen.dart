@@ -327,7 +327,11 @@ class _TasksScreenState extends State<TasksScreen> {
           const SliverToBoxAdapter(child: SizedBox(height: 40)),
         ],
       ),
-      drawer: mb.CustomDrawer(roomName: _groupName, groupId: _userGroupId),
+      drawer: mb.CustomDrawer(
+        roomName: _groupName, // lub pobrana nazwa
+        groupId: _userGroupId, // lub pobrane ID
+        currentRoute: 'tasks', // <--- TO SPRAWIA ŻE ŚWIECI NA ZIELONO
+      ),
     );
   }
 

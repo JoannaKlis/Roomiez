@@ -41,27 +41,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _handleJoin() async {
-    if (_groupIdController.text.isEmpty) {
+    final groupIdInput = _groupIdController.text.trim();
+
+    if (groupIdInput.isEmpty) {
       showSnackBarColor(context, 'Please enter an invite code!', Colors.red);
       return;
     }
 
-    bool success =
-        await _firestoreService.addUserToGroup(_groupIdController.text);
+    // 1. Próba dołączenia do grupy
+    bool success = await _firestoreService.addUserToGroup(groupIdInput);
 
     if (success) {
-      showSnackBarColor(context, "Success", Colors.green);
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => HomeScreen(
-            roomName: _groupIdController.text.trim(),
-            groupId: _groupIdController.text.trim(), // tymczasowo
+      // 2. Pobranie PRAWDZIWEJ nazwy grupy z bazy (żeby nie wyświetlać kodu jako nazwy)
+      String realGroupName = await _firestoreService.getGroupName(groupIdInput);
+
+      if (mounted) {
+        showSnackBarColor(context, "Success! Joined $realGroupName", Colors.green);
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => HomeScreen(
+              roomName: realGroupName, // Tutaj przekazujemy pobraną nazwę
+              groupId: groupIdInput,
+            ),
           ),
-        ),
-      );
+        );
+      }
     } else {
-      showSnackBarColor(context, "This group doesn't exist!", Colors.red);
+      if (mounted) {
+        showSnackBarColor(context, "This group doesn't exist!", Colors.red);
+      }
     }
   }
 

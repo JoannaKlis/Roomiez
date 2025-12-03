@@ -34,24 +34,38 @@ class _LoginScreenState extends State<LoginScreen> {
 
     // --- BACKDOOR DLA ADMINA (NOWA FUNKCJONALNOŚĆ) ---
     // Sprawdzamy "na sztywno" dane logowania admina przed uderzeniem do Firebase
-    if (_emailController.text.trim() == 'admin@admin.com' && 
+    if (_emailController.text.trim() == 'admin@admin.com' &&
         _passwordController.text == 'adminadmin') {
-        
-       ScaffoldMessenger.of(context).showSnackBar(
+      
+      // 1. Najpierw logujemy go w Firebase, żeby dostał "przepustkę" do bazy danych
+      final errorMessage = await _authService.signInUser(
+        _emailController.text.trim(),
+        _passwordController.text,
+      );
+
+      // 2. Jeśli logowanie w Firebase się nie uda (np. brak neta), pokazujemy błąd
+      if (errorMessage != null) {
+        if (mounted) AuthService.showErrorSnackBar(context, errorMessage);
+        return;
+      }
+
+      // 3. Jeśli sukces - pokazujemy powitanie i idziemy do AdminDashboard
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Welcome back, Admin! 🕵️‍♂️'),
-            backgroundColor: Colors.black87, // Ciemny kolor wyróżniający admina
+            backgroundColor: Colors.black87,
             behavior: SnackBarBehavior.floating,
             duration: Duration(seconds: 2),
           ),
         );
 
-        // Przekierowanie do panelu admina
         Navigator.pushReplacement(
-          context, 
-          MaterialPageRoute(builder: (context) => const AdminDashboardScreen())
-        );
-        return; // Kończymy funkcję tutaj
+            context,
+            MaterialPageRoute(
+                builder: (context) => const AdminDashboardScreen()));
+      }
+      return; // Kończymy funkcję tutaj, admin obsłużony
     }
     // ------------------------------------------------
 

@@ -5,10 +5,9 @@ import 'tasks_screen.dart';
 import 'expenses_screen.dart';
 import 'announcements_screen.dart';
 import 'profile_edit_screen.dart';
-// import 'navigation_screen.dart'; // To jest zbędne, jeśli używamy menu_bar.dart
-import '../widgets/menu_bar.dart'; // Importujemy bez aliasu, jeśli klasa jest unikalna
+import '../widgets/menu_bar.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   final String roomName;
   final String groupId;
 
@@ -17,6 +16,30 @@ class HomeScreen extends StatelessWidget {
     required this.roomName,
     required this.groupId,
   });
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final FirestoreService _firestoreService = FirestoreService();
+  String _userName = 'Roomie'; // Domyślna wartość podczas ładowania
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserName();
+  }
+
+  // Funkcja pobierająca imię z Firebase
+  Future<void> _loadUserName() async {
+    final userProfile = await _firestoreService.getCurrentUserProfile();
+    if (mounted && userProfile != null) {
+      setState(() {
+        _userName = userProfile['firstName'] ?? 'Roomie';
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,9 +71,9 @@ class HomeScreen extends StatelessWidget {
                 fontSize: 20,
               ),
             ),
-            if (roomName.isNotEmpty)
+            if (widget.roomName.isNotEmpty)
               Text(
-                roomName.toUpperCase(),
+                widget.roomName.toUpperCase(),
                 style: const TextStyle(
                   color: lightTextColor,
                   fontFamily: appFontFamily,
@@ -82,9 +105,9 @@ class HomeScreen extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text(
-                    'Hello, Jack!',
-                    style: TextStyle(
+                  Text(
+                    'Hello, $_userName!', // Dynamiczne imię
+                    style: const TextStyle(
                       fontSize: 28,
                       fontFamily: appFontFamily,
                       fontWeight: FontWeight.w900, // Gruby Inter
@@ -94,13 +117,15 @@ class HomeScreen extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   InkWell(
-                    onTap: () {
-                      Navigator.pushNamed(context, ProfileEditScreen.id);
+                    onTap: () async {
+                      // Czekamy na powrót z edycji, żeby odświeżyć imię
+                      await Navigator.pushNamed(context, ProfileEditScreen.id);
+                      _loadUserName();
                     },
                     borderRadius: BorderRadius.circular(20),
                     child: Container(
                       padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         color: surfaceColor,
                         shape: BoxShape.circle,
                       ),
@@ -184,8 +209,8 @@ class HomeScreen extends StatelessWidget {
           ),
         ),
       ),
-      // POPRAWIONE: Używamy nazwy klasy CustomDrawer zdefiniowanej w menu_bar.dart
-      drawer: CustomDrawer(roomName: roomName, groupId: groupId),
+      // Drawer z poprawnymi danymi
+      drawer: CustomDrawer(roomName: widget.roomName, groupId: widget.groupId),
     );
   }
 }

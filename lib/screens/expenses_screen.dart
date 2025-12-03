@@ -276,7 +276,11 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           const SliverToBoxAdapter(child: SizedBox(height: 40)),
         ],
       ),
-      drawer: mb.CustomDrawer(roomName: _groupName, groupId: _userGroupId),
+      drawer: mb.CustomDrawer(
+        roomName: _groupName, 
+        groupId: _userGroupId,
+        currentRoute: 'expenses', 
+      ),
     );
   }
 

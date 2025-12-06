@@ -45,7 +45,9 @@ Solves the "who paid for what" problem. The expense tracking and automatic settl
 Thanks to the role system (**Admin vs Member**), the application scales from small student apartments to managed units in dormitories. The Administrator (e.g., property manager or "head tenant") has control tools (`Admin Dashboard`), allowing for effective management of the resident structure.
 
 ### 3. Operational Efficiency (Task Management)
+
 Replaces analog charts and fridge notes with a digital task delegation system (`Tasks`) and resource management (`Shopping List`). This increases user accountability and streamlines the daily functioning of the household.
+
 ---
 ## 🛠 Tech Stack
 

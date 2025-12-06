@@ -1,21 +1,13 @@
-# 🏢 Roomiez
+# 🏢 Roomies
 
-**Roomiez** is a comprehensive *Property & Household Management* solution built with Flutter. The application digitizes and automates processes related to shared living, eliminating the most common friction points in relationships between tenants: finances, chores, and communication.
+Manage your place. Together. 
 
----
+**Roomies** is an innovative tool that will allow you and your roomates to manage:
+- expenses
+- chores
+- communication
 
-## 💎 Business & User Value
-
-The project addresses real needs in the rental and student housing market, offering:
-
-### 1. Financial Transparency (FinTech)
-Solves the "who paid for what" problem. The expense tracking and automatic settlement system ensures full transparency of cash flows within the group, significantly reducing economic conflicts.
-
-### 2. Micro-Community Management
-Thanks to the role system (**Admin vs Member**), the application scales from small student apartments to managed units in dormitories. The Administrator (e.g., property manager or "head tenant") has control tools (`Admin Dashboard`), allowing for effective management of the resident structure.
-
-### 3. Operational Efficiency (Task Management)
-Replaces analog charts and fridge notes with a digital task delegation system (`Tasks`) and resource management (`Shopping List`). This increases user accountability and streamlines the daily functioning of the household.
+... in one place!
 
 ---
 
@@ -42,7 +34,19 @@ Replaces analog charts and fridge notes with a digital task delegation system (`
 * **Cloud Data:** All data is synchronized in real-time thanks to **Firestore**.
 
 ---
+## 💎 Our Value
 
+The project addresses real needs in the rental and student housing market, offering:
+
+### 1. Financial Transparency (FinTech)
+Solves the "who paid for what" problem. The expense tracking and automatic settlement system ensures full transparency of cash flows within the group, significantly reducing economic conflicts.
+
+### 2. Micro-Community Management
+Thanks to the role system (**Admin vs Member**), the application scales from small student apartments to managed units in dormitories. The Administrator (e.g., property manager or "head tenant") has control tools (`Admin Dashboard`), allowing for effective management of the resident structure.
+
+### 3. Operational Efficiency (Task Management)
+Replaces analog charts and fridge notes with a digital task delegation system (`Tasks`) and resource management (`Shopping List`). This increases user accountability and streamlines the daily functioning of the household.
+---
 ## 🛠 Tech Stack
 
 The project utilizes a modern technology stack ensuring performance, scalability, and maintainability (Single Codebase):
@@ -68,6 +72,7 @@ lib/
 │   └── ...
 ├── services/       # Communication layer with API/Firebase
 └── widgets/        # Reusable interface components (Design System)
+```
 
 ## 🚀 How to run the app?
 
@@ -93,3 +98,6 @@ lib/
 4. **Build**
    ```bash
     flutter run
+
+
+## Screens yayyyy

@@ -21,25 +21,13 @@ class DefaultFirebaseOptions {
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for android - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return android;
       case TargetPlatform.iOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for ios - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return ios;
       case TargetPlatform.macOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for macos - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return macos;
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -60,4 +48,40 @@ class DefaultFirebaseOptions {
     authDomain: 'roomies-attempt-four.firebaseapp.com',
     storageBucket: 'roomies-attempt-four.firebasestorage.app',
   );
+
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: 'AIzaSyB4qXw5IlvLXmfstmAKUtzcRzTZF7va4Fo',
+    appId: '1:661039624157:ios:7e3d556ffe0607d3259034',
+    messagingSenderId: '661039624157',
+    projectId: 'roomies-attempt-four',
+    storageBucket: 'roomies-attempt-four.firebasestorage.app',
+    iosBundleId: 'com.example.roomies',
+  );
+
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyB4qXw5IlvLXmfstmAKUtzcRzTZF7va4Fo',
+    appId: '1:661039624157:ios:7e3d556ffe0607d3259034',
+    messagingSenderId: '661039624157',
+    projectId: 'roomies-attempt-four',
+    storageBucket: 'roomies-attempt-four.firebasestorage.app',
+    iosBundleId: 'com.example.roomies',
+  );
+
+  static const FirebaseOptions android = FirebaseOptions(
+    apiKey: 'AIzaSyDS8R4E7SKP3okDxMABSgVd8DSz_-bksn4',
+    appId: '1:661039624157:android:53fdde5f7c25d736259034',
+    messagingSenderId: '661039624157',
+    projectId: 'roomies-attempt-four',
+    storageBucket: 'roomies-attempt-four.firebasestorage.app',
+  );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyBpq79Mlc5bGLC004Uee3V9fj0UNAgs448',
+    appId: '1:661039624157:web:d95f564ea7d1e62f259034',
+    messagingSenderId: '661039624157',
+    projectId: 'roomies-attempt-four',
+    authDomain: 'roomies-attempt-four.firebaseapp.com',
+    storageBucket: 'roomies-attempt-four.firebasestorage.app',
+  );
+
 }

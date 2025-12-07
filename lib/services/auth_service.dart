@@ -26,7 +26,7 @@ class AuthService {
           'lastName': lastName,
           'email': email,
           'role': UserRole.user, // domyślna rola
-          'groupId': 'default_group', // domyślna grupa DO ZMIANY W PRZYSZŁOŚCI
+          'groupId': '', // null aby dodać później do grupy
           // hasło nie jest przechowywane w Firestore, bo jest w Auth i jest hashowane
         });
       }

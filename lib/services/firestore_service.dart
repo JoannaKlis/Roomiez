@@ -49,6 +49,26 @@ class FirestoreService {
     }
   }
 
+  // pobieranie roli aktualnie zalogowanego użytkownika
+  Future<String> getCurrentUserRole() async {
+    try {
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+
+      if (userId == null) return UserRole.user;
+
+      final userDoc = await _firestore.collection('users').doc(userId).get();
+
+      if (userDoc.exists && userDoc.data()!.containsKey('role')) {
+        return userDoc.data()!['role'].toString() ?? UserRole.user;
+      }
+
+      return UserRole.user;
+    } catch (e) {
+      print('Error fetching user role: $e');
+      return UserRole.user;
+    }
+  }
+
   Future<String> createNewGroup(String Name) async {
     try {
       final String userId = FirebaseAuth.instance.currentUser!.uid;
@@ -272,31 +292,28 @@ class FirestoreService {
   // ADMIN FEATURES
   // ==============================
 
-  // 1. Pobierz strumień wszystkich grup (do Dashboardu Admina)
+  // pobieranie wszytstkich grup (do admin dashboard)
   Stream<List<Map<String, dynamic>>> getAllGroupsStream() {
     return _firestore.collection('groups').snapshots().map((snapshot) {
       return snapshot.docs.map((doc) {
         final data = doc.data();
-        data['id'] = doc.id; // Dodajemy ID dokumentu do danych
-        // Zabezpieczenie jeśli nie ma pola status
-        if (!data.containsKey('status')) data['status'] = 'Active';
-        // Zabezpieczenie daty
-        if (data['createdAt'] == null) data['createdAt'] = Timestamp.now();
+        data['id'] = doc.id; // ID grupy
+        // liczenie członków grupy
         return data;
       }).toList();
     });
   }
 
-  // 2. Zmień status grupy (np. Blocked, Active)
+  // zmiana statusu grupy (admin)
   Future<void> updateGroupStatus(String groupId, String newStatus) async {
     await _firestore.collection('groups').doc(groupId).update({
       'status': newStatus,
     });
   }
 
-  // 3. Pobierz członków konkretnej grupy (dla Admina)
+  // pobieranie listy członków grupy (admin)
   Stream<List<Map<String, dynamic>>> getGroupMembersStream(String groupId) {
-    // Szukamy userów, którzy mają pole 'groupId' równe podanemu ID
+    // groupId = ID
     return _firestore
         .collection('users')
         .where('groupId', isEqualTo: groupId)
@@ -305,9 +322,10 @@ class FirestoreService {
       return snapshot.docs.map((doc) {
         final data = doc.data();
         data['uid'] = doc.id; // ID użytkownika
-        // Domyślna rola jeśli brak
-        if (!data.containsKey('role')) data['role'] = 'Member';
-        // Sklejamy imię
+        // domyślna rola jeśli jej nie ma
+        if (!data.containsKey('role')) data['role'] = UserRole.user;
+        data['role'] = data['role'].toString();
+        // imię + nazwisko
         if (!data.containsKey('name')) {
              data['name'] = '${data['firstName'] ?? ''} ${data['lastName'] ?? ''}'.trim();
              if (data['name'].isEmpty) data['name'] = 'Unknown User';
@@ -317,18 +335,47 @@ class FirestoreService {
     });
   }
 
-  // 4. Zmień rolę użytkownika (Admin/Member)
-  Future<void> updateUserRole(String userId, String newRole) async {
+  // zmiana roli użytkownika (admin)
+  Future<void> updateUserRole(String userId, bool makeAdmin) async {
+    final String newRole = makeAdmin ? UserRole.administrator : UserRole.user;
     await _firestore.collection('users').doc(userId).update({
       'role': newRole,
     });
   }
 
-  // 5. Usuń użytkownika z grupy (czyści jego groupId)
+  // usuwanie użytkownika z grupy (admin)
   Future<void> removeUserFromGroup(String userId) async {
+    // groupId na null i rola na 'user'
     await _firestore.collection('users').doc(userId).update({
-      'groupId': FieldValue.delete(), // Usuwamy pole groupId
-      'role': FieldValue.delete(), // Usuwamy rolę
+      'groupId': null, 
+      'role': UserRole.user, 
     });
+  }
+
+  // usuwanie dokumentu użytkownika (admin)
+  Future<void> deleteUserDocument(String userId) async {
+    await _firestore.collection('users').doc(userId).delete();
+  }
+
+  // usuawanie grupy (admin)
+  Future<void> deleteGroup(String groupId) async {
+    // przeniesienie wszystkich użytkowników z tej grupy (lub groupId na null i rolę na 'user')
+    final usersInGroup = await _firestore
+        .collection('users')
+        .where('groupId', isEqualTo: groupId)
+        .get();
+
+    final batch = _firestore.batch();
+    for (var doc in usersInGroup.docs) {
+      batch.update(doc.reference, {
+        'groupId': null, 
+        'role': UserRole.user, 
+      });
+    }
+
+    // usuwanie dokumentu grupy
+    batch.delete(_firestore.collection('groups').doc(groupId));
+
+    await batch.commit();
   }
 }

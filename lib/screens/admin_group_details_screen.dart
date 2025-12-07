@@ -5,6 +5,7 @@ import 'package:intl/intl.dart'; // Formatowanie daty
 import '../constants.dart';
 import '../services/firestore_service.dart'; // Twój serwis
 import '../models/announcement_model.dart'; // Model ogłoszenia
+import '../utils/user_roles.dart';
 
 class AdminGroupDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> group;
@@ -19,15 +20,15 @@ class AdminGroupDetailsScreen extends StatefulWidget {
 class _AdminGroupDetailsScreenState extends State<AdminGroupDetailsScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   late String _groupId;
+  final String? _currentAdminUid = FirebaseAuth.instance.currentUser?.uid;
 
   @override
   void initState() {
     super.initState();
-    // Pobieramy ID grupy
     _groupId = widget.group['id'] ?? '';
   }
 
-  // --- FUNKCJE FIRESTORE ---
+  // --- FUNKCJE FIRESTORE - ZARZĄDZANIE GRUPĄ ---
 
   // Zmiana statusu grupy
   void _changeGroupStatus(String newStatus) async {
@@ -50,43 +51,117 @@ class _AdminGroupDetailsScreenState extends State<AdminGroupDetailsScreen> {
     }
   }
 
-  // Zmiana roli użytkownika
-  void _toggleAdminRole(String userId, String currentRole) async {
-    final newRole = currentRole == 'Admin' ? 'Member' : 'Admin';
+  // Usunięcie grupy i resetowanie użytkowników (Admin CRUD)
+  void _deleteGroup() async {
+    final bool confirmed = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Confirm Deletion"),
+        content: Text("Are you sure you want to permanently delete group '${widget.group['name'] ?? _groupId}'? All member roles will be reset."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel")),
+          ElevatedButton(onPressed: () => Navigator.pop(context, true), style: ElevatedButton.styleFrom(backgroundColor: Colors.red), child: const Text("Delete")),
+        ],
+      ),
+    ) ?? false;
+
+    if (!confirmed) return;
+
     try {
-      await _firestoreService.updateUserRole(userId, newRole);
+      await _firestoreService.deleteGroup(_groupId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text("Group successfully deleted!"),
+              backgroundColor: Colors.green),
+        );
+        // Po usunięciu wracamy do dashboardu
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error deleting group: $e"), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  // --- FUNKCJE FIRESTORE - ZARZĄDZANIE CZŁONKAMI GRUPY ---
+
+  // Zmiana roli użytkownika (Make Admin / Revoke Admin)
+  void _toggleAdminRole(String userId, String currentRole) async {
+    // sprawdzenie czy nowa rola będzie adminem
+    final bool willBeAdmin = currentRole != UserRole.administrator;
+
+    // admin nie może odebrać sobie roli
+    if (userId == _currentAdminUid && !willBeAdmin) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("You cannot revoke your own administrator role!"),
+          ),
+        );
+      }
+      return;
+    }
+
+    try {
+      // wywołanie metody z firestore_service
+      await _firestoreService.updateUserRole(userId, willBeAdmin); 
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(newRole == 'Admin'
-                ? "User promoted to Admin."
+            content: Text(willBeAdmin
+                ? "User role set to Admin."
                 : "Admin privileges revoked."),
-            backgroundColor: Colors.blueAccent,
           ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text("Error changing role: $e"),
+          ),
         );
       }
     }
   }
 
-  // Usunięcie użytkownika
-  void _removeUser(String userId) async {
+  // isunięcie użytkownika z grupy (admin CRUD)
+  void _removeUserFromGroup(String userId) async {
+    // admin nie może usunąć siebie z grupy
+    if (userId == _currentAdminUid) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("You cannot remove yourself from the group!"),
+          ),
+        );
+      }
+      return;
+    }
+    
     try {
+      // wywołanie metody z firestore_service
       await _firestoreService.removeUserFromGroup(userId);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text("User removed form group."),
-              backgroundColor: Colors.orange),
+            content: Text("User removed from the group and their role was reset."),
+          ),
         );
       }
     } catch (e) {
-      // Obsługa błędu
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error removing user: $e"),
+          ),
+        );
+      }
     }
   }
 
@@ -95,7 +170,8 @@ class _AdminGroupDetailsScreenState extends State<AdminGroupDetailsScreen> {
     if (title.isEmpty || message.isEmpty) return;
 
     // Pobieramy ID aktualnego admina (lub placeholder, jeśli null)
-    final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? 'ADMIN_SYSTEM';
+    final currentUserId =
+        FirebaseAuth.instance.currentUser?.uid ?? 'ADMIN_SYSTEM';
 
     final announcement = Announcement(
       id: '', // Firestore wygeneruje ID, ale model wymaga stringa
@@ -103,7 +179,8 @@ class _AdminGroupDetailsScreenState extends State<AdminGroupDetailsScreen> {
       body: message, // <--- POPRAWIONE: mapowanie message -> body
       groupId: _groupId,
       createdById: currentUserId, // <--- POPRAWIONE: Dodano wymagane ID twórcy
-      createdByName: 'Admin System', // <--- POPRAWIONE: authorName -> createdByName
+      createdByName:
+          'Admin System', // <--- POPRAWIONE: authorName -> createdByName
       createdAt: DateTime.now(),
       imageUrls: [], // Opcjonalne, pusta lista
     );
@@ -167,7 +244,8 @@ class _AdminGroupDetailsScreenState extends State<AdminGroupDetailsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel", style: TextStyle(color: lightTextColor)),
+            child:
+                const Text("Cancel", style: TextStyle(color: lightTextColor)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -242,10 +320,7 @@ class _AdminGroupDetailsScreenState extends State<AdminGroupDetailsScreen> {
                   surfaceTintColor: Colors.transparent,
                   onSelected: (value) {
                     if (value == 'delete') {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text("Delete group clicked (Dangerous!)")),
-                      );
+                      _deleteGroup(); // wywołanie metody usuwania
                     } else {
                       _changeGroupStatus(value);
                     }
@@ -296,7 +371,7 @@ class _AdminGroupDetailsScreenState extends State<AdminGroupDetailsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // --- BANER PRYWATNOŚCI ---
+                    // --- BANER PRYWATNOŚCI (bez zmian) ---
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
@@ -440,7 +515,8 @@ class _AdminGroupDetailsScreenState extends State<AdminGroupDetailsScreen> {
                               child: CircularProgressIndicator());
                         }
                         if (snapshot.hasError) {
-                          return Text('Error loading members: ${snapshot.error}');
+                          return Text(
+                              'Error loading members: ${snapshot.error}');
                         }
 
                         final members = snapshot.data ?? [];
@@ -473,7 +549,6 @@ class _AdminGroupDetailsScreenState extends State<AdminGroupDetailsScreen> {
                             const SizedBox(height: 16),
                             if (members.isEmpty)
                               const Text("No members in this group."),
-                            
                             ListView.separated(
                               shrinkWrap: true,
                               physics: const NeverScrollableScrollPhysics(),
@@ -486,7 +561,7 @@ class _AdminGroupDetailsScreenState extends State<AdminGroupDetailsScreen> {
                                   user: user,
                                   onToggleAdmin: () => _toggleAdminRole(
                                       user['uid'], user['role']),
-                                  onRemoveUser: () => _removeUser(user['uid']),
+                                  onRemoveUser: () => _removeUserFromGroup(user['uid']),
                                 );
                               },
                             ),
@@ -578,7 +653,7 @@ class _MemberTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool isAdmin = user['role'] == 'Admin';
+    final bool isAdmin = user['role'] == 'admin';
     final String name = user['name'] ?? 'Unknown';
     final String email = user['email'] ?? 'No email';
 
@@ -669,7 +744,7 @@ class _MemberTile extends StatelessWidget {
               if (value == 'toggle_role') {
                 onToggleAdmin();
               } else if (value == 'remove') {
-                onRemoveUser();
+                onRemoveUser(); 
               }
             },
             itemBuilder: (context) => [
@@ -679,8 +754,8 @@ class _MemberTile extends StatelessWidget {
                   children: [
                     Icon(
                         isAdmin
-                            ? Icons.person_remove
-                            : Icons.admin_panel_settings,
+                            ? Icons.person_remove // revoke admin
+                            : Icons.admin_panel_settings, // make admin
                         color: primaryColor,
                         size: 20),
                     const SizedBox(width: 10),

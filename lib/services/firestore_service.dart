@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../models/task_model.dart';
 import '../models/expense_history_item.dart';
@@ -90,6 +91,7 @@ class FirestoreService {
       });
       return groupId;
     } catch (e) {
+      debugPrint("createNewGroup error: $e");
       return "";
     }
   }
@@ -108,6 +110,7 @@ class FirestoreService {
       });
       return true;
     } catch (e) {
+      debugPrint("addUserToGroup error: $e");
       return false;
     }
   }

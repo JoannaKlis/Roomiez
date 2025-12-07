@@ -70,7 +70,7 @@ class _LoginScreenState extends State<LoginScreen> {
         }
 
         // przekierowanie zwykłych użytkowników
-        final String? groupId = userProfile?['groupId'];
+        final String groupId = userProfile?['groupId'];
         final String roomName = await _firestoreService.getGroupName(
             groupId ?? ''); // Pobierz nazwę lub domyślny komunikat
 
@@ -82,17 +82,12 @@ class _LoginScreenState extends State<LoginScreen> {
             duration: Duration(milliseconds: 1500),
           ),
         );
-
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (context) => (groupId != null && groupId.isNotEmpty)
-                ? HomeScreen(
-                    roomName: roomName,
-                    groupId: groupId,
-                  )
-                : const DashboardScreen(),
-          ),
+          MaterialPageRoute(builder: (context) => groupId != "default_group"
+          ? HomeScreen(roomName: roomName, groupId: groupId,)
+          : const DashboardScreen(),),
+          //jeśli już ma groupId (nie default_group) to nie pokazuj ekranu z dołączeniem/tworzeniem miejsca
         );
       } catch (e) {
         if (mounted) {

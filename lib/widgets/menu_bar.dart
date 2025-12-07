@@ -45,49 +45,6 @@ class CustomDrawer extends StatelessWidget {
     }
   }
 
-  void _showExitGroupDialog(BuildContext context) {
-  showDialog(
-    context: context,
-    barrierDismissible: false, 
-    builder: (context) {
-      return AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text('Exit group?'),
-            IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-          ],
-        ),
-        content: const Text('Are you sure you want to exit the group?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.of(context).pop(); 
-              _signOut(context); // na razie wyloguj, nalezy zmienic uzytkownikowi role na user, 
-              //groupId na default_group oraz odpowiednio przynzać role pozostalym w grupie lub ją rozwiązać
-            },
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.redAccent,
-            ),
-            child: const Text('Yes'),
-          ),
-        ],
-      );
-    },
-  );
-}
-
-
   @override
   Widget build(BuildContext context) {
     return Drawer(
@@ -278,21 +235,7 @@ class CustomDrawer extends StatelessWidget {
                 ],
               ),
             ),
-            const Divider(color: borderColor, height: 1),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              child: Column(
-                children: [
-                  _DrawerItem(
-                    icon: Icons.waving_hand_outlined,
-                    label: 'Exit current group',
-                    textColor: Colors.redAccent,
-                    iconColor: Colors.redAccent,
-                    onTap: () => _showExitGroupDialog(context),
-                  ),
-                ],
-              ),
-            ),
+
             // --- FOOTER (WYLOGOWANIE) ---
             const Divider(color: borderColor, height: 1),
             Padding(

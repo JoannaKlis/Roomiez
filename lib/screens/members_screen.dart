@@ -160,7 +160,7 @@ class _MembersScreenState extends State<MembersScreen> {
                     final String name = member['name'].toString().isNotEmpty ? member['name'] : 'Unknown';
                     // Sprawdzamy rolę (obsługuje różne warianty zapisu)
                     final String role = (member['role'] ?? '').toString().toLowerCase();
-                    final bool isAdmin = role.contains('manager') || role.contains('admin');
+                    final bool isAdmin = role.contains('manager');
                     
                     final bool isMe = userId == _currentUserId;
                     final String initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
@@ -224,7 +224,7 @@ class _MembersScreenState extends State<MembersScreen> {
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
-                                    // --- BADGE ADMINA ---
+                                    // --- BADGE Managera ---
                                     if (isAdmin) ...[
                                       const SizedBox(width: 8),
                                       Container(
@@ -234,7 +234,7 @@ class _MembersScreenState extends State<MembersScreen> {
                                           borderRadius: BorderRadius.circular(6),
                                         ),
                                         child: const Text(
-                                          'ADMIN',
+                                          'APARTMENT MANAGER',
                                           style: TextStyle(
                                             color: Colors.white,
                                             fontSize: 9,

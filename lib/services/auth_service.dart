@@ -4,8 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:roomies/utils/user_roles.dart';
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth;
+  final FirebaseFirestore _firestore;
+
+  // Konstruktor pozwala wstrzyknąć instancje, a jeśli ich nie podamy, użyje domyślnych
+  AuthService({FirebaseAuth? auth, FirebaseFirestore? firestore})
+      : _auth = auth ?? FirebaseAuth.instance,
+        _firestore = firestore ?? FirebaseFirestore.instance;
 
   // rejestracja użytkownika z dodatkowymi danymi
   Future<String?> registerUser(

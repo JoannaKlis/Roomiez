@@ -82,8 +82,6 @@ class FirestoreService {
       } while (groups.contains(groupId));
       await _firestore.collection('groups').doc(groupId).set({
         'name': Name,
-        'createdAt': FieldValue.serverTimestamp(), // Dodano timestamp dla admina
-        'status': 'Active', // Dodano domyślny status dla admina
       });
       await _firestore.collection('users').doc(userId).update({
         'role': UserRole.apartmentManager,
@@ -114,6 +112,58 @@ class FirestoreService {
       return false;
     }
   }
+
+  // wyjście użytkownika z grupy
+  Future<void> userExitsAGroup() async {
+    try {
+    final String userId = FirebaseAuth.instance.currentUser!.uid;
+    final groupId = await getCurrentUserGroupId();
+    final batch = _firestore.batch();
+    final currentUserRole = await getCurrentUserRole();
+    final usersInGroup = await _firestore
+        .collection('users')
+        .where('groupId', isEqualTo: groupId)
+        .get();
+    if (usersInGroup.size == 1) {
+      batch.delete(_firestore.collection('groups').doc(groupId));
+
+      // usuń wszystkie powiązane dokumenty
+      final collectionsToDelete = ['announcements', 'tasks', 'shopping_items', 'expenses'];
+      for (var col in collectionsToDelete) {
+        final snapshot = await _firestore.collection(col)
+        .where('groupId', isEqualTo: groupId)
+        .get();
+        for (var doc in snapshot.docs) {
+        batch.delete(doc.reference);
+        }
+      }
+    } else if(currentUserRole == UserRole.apartmentManager){
+        final otherUsers = usersInGroup.docs
+          .where((doc) => doc.id != userId)
+          .toList();
+      if(otherUsers.isNotEmpty){
+        otherUsers.shuffle();
+        final newManagerId = otherUsers.first.id;
+        batch.update(
+          _firestore.collection('users').doc(newManagerId),
+          {'role': UserRole.apartmentManager},
+        );
+      }
+    }
+    batch.update(
+      _firestore.collection('users').doc(userId),
+      {
+        'groupId': 'default_group',
+        'role': UserRole.user,
+      },
+    );
+    await batch.commit();
+    } catch (e) {
+      debugPrint("userExitsAGroup error: $e");
+      return;
+    }
+  }
+
 
   // pobieranie użytkowników z tej samej grupy
   Future<List<Map<String, String>>> getCurrentApartmentUsers(
@@ -348,9 +398,9 @@ class FirestoreService {
 
   // usuwanie użytkownika z grupy (admin)
   Future<void> removeUserFromGroup(String userId) async {
-    // groupId na null i rola na 'user'
+    // groupId nie na null tylko default_group i rola na 'user'
     await _firestore.collection('users').doc(userId).update({
-      'groupId': null, 
+      'groupId': "default_group", 
       'role': UserRole.user, 
     });
   }
@@ -371,7 +421,7 @@ class FirestoreService {
     final batch = _firestore.batch();
     for (var doc in usersInGroup.docs) {
       batch.update(doc.reference, {
-        'groupId': null, 
+        'groupId': "default_group", 
         'role': UserRole.user, 
       });
     }

@@ -106,9 +106,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               elevation: 0,
               floating: true,
               leading: IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                icon: const Icon(Icons.logout_rounded,
                     color: textColor),
-                onPressed: () => Navigator.pop(context),
+                onPressed: (){
+                  //wyloguj
+                }
               ),
             ),
 

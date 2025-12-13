@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:roomies/screens/dashboard_screen.dart';
+import 'package:roomies/services/firestore_service.dart';
 import '../constants.dart';
 
 // --- IMPORTY EKRANÓW ---
@@ -16,12 +18,14 @@ class CustomDrawer extends StatelessWidget {
   final String roomName;
   final String currentRoute; 
 
-  const CustomDrawer({
+  CustomDrawer({
     super.key,
     required this.groupId,
     required this.roomName,
     this.currentRoute = 'dashboard', 
   });
+
+  final FirestoreService _firestoreService = FirestoreService();
 
   void _copyToClipboard(BuildContext context) {
     Clipboard.setData(ClipboardData(text: groupId));
@@ -45,43 +49,59 @@ class CustomDrawer extends StatelessWidget {
     }
   }
 
-  void _showExitGroupDialog(BuildContext context) {
+void _showExitGroupDialog(BuildContext context) {
+  bool isProcessing = false; // zmienna do blokady przycisku
+  final parentContext = context;
+
   showDialog(
-    context: context,
-    barrierDismissible: false, 
-    builder: (context) {
-      return AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text('Exit group?'),
-            IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () => Navigator.of(context).pop(),
+    context: parentContext,
+    barrierDismissible: false,
+    builder: (dialogContext) {
+      return StatefulBuilder(
+        builder: (sbContext, setState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
-          ],
-        ),
-        content: const Text('Are you sure you want to exit the group?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.of(context).pop(); 
-              _signOut(context); // na razie wyloguj, nalezy zmienic uzytkownikowi role na user, 
-              //groupId na default_group oraz odpowiednio przynzać role pozostalym w grupie lub ją rozwiązać
-            },
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.redAccent,
+            title: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Exit group?'),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                ),
+              ],
             ),
-            child: const Text('Yes'),
-          ),
-        ],
+            content: const Text('Are you sure you want to exit the group?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+              onPressed: isProcessing
+                  ? null
+                  : () async {
+                      setState(() => isProcessing = true);
+                        try {
+                          await _firestoreService.userExitsAGroup();
+                          if (parentContext.mounted) {
+                            Navigator.of(parentContext).pushAndRemoveUntil(
+                              MaterialPageRoute(builder: (_) => const DashboardScreen()),
+                              (route) => false,
+                            );
+                          }
+                        } catch (e) {
+                          debugPrint('Error exiting group: $e');
+                        }
+                      },
+              style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+              child: const Text('Yes'),
+            ),
+            ],
+          );
+        },
       );
     },
   );

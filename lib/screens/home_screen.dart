@@ -87,9 +87,19 @@ class _HomeScreenState extends State<HomeScreen> {
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_none_rounded,
-                size: 28, color: textColor),
-            onPressed: () {},
+            icon: const Icon(
+              Icons.notifications_none_rounded,
+              size: 28,
+              color: textColor,
+            ),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AnnouncementsScreen(),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -338,7 +348,8 @@ class _ExpensesCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
-          _expenseRow('Bread', 'Martin', '5,50 PLN', Icons.shopping_cart_outlined),
+          _expenseRow(
+              'Bread', 'Martin', '5,50 PLN', Icons.shopping_cart_outlined),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 12.0),
             child: Divider(color: borderColor, height: 1),
@@ -524,7 +535,8 @@ class _ShoppingItem extends StatelessWidget {
               isBought
                   ? Icons.check_circle_rounded
                   : Icons.radio_button_unchecked_rounded,
-              color: isBought ? primaryColor : borderColor, // Szary jak nieaktywny
+              color:
+                  isBought ? primaryColor : borderColor, // Szary jak nieaktywny
               size: 24,
             ),
             const SizedBox(width: 12),

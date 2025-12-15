@@ -6,6 +6,7 @@ import '../models/task_model.dart';
 import '../services/firestore_service.dart';
 import 'navigation_screen.dart';
 import '../widgets/menu_bar.dart' as mb;
+import 'announcements_screen.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -233,7 +234,8 @@ class _TasksScreenState extends State<TasksScreen> {
             pinned: true,
             leading: Builder(
               builder: (context) => IconButton(
-                icon: const Icon(Icons.menu_rounded, size: 28, color: textColor),
+                icon:
+                    const Icon(Icons.menu_rounded, size: 28, color: textColor),
                 onPressed: () {
                   Scaffold.of(context).openDrawer();
                 },
@@ -266,9 +268,19 @@ class _TasksScreenState extends State<TasksScreen> {
             centerTitle: true,
             actions: [
               IconButton(
-                icon: const Icon(Icons.notifications_none_rounded,
-                    size: 28, color: textColor),
-                onPressed: () {},
+                icon: const Icon(
+                  Icons.notifications_none_rounded,
+                  size: 28,
+                  color: textColor,
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AnnouncementsScreen(),
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -320,10 +332,10 @@ class _TasksScreenState extends State<TasksScreen> {
               ),
             ),
           ),
-          
+
           // Lista zadań
           _buildTaskList(),
-          
+
           const SliverToBoxAdapter(child: SizedBox(height: 40)),
         ],
       ),
@@ -352,7 +364,7 @@ class _TasksScreenState extends State<TasksScreen> {
             offset: const Offset(0, 5),
           ),
         ],*/
-      ), 
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -370,7 +382,7 @@ class _TasksScreenState extends State<TasksScreen> {
               ),
               const SizedBox(height: 4),
               const Text(
-                'Check updates', 
+                'Check updates',
                 style: TextStyle(
                   color: textColor, // ZMIANA: Ciemny tekst
                   fontSize: 24,
@@ -397,7 +409,8 @@ class _TasksScreenState extends State<TasksScreen> {
               },
               borderRadius: BorderRadius.circular(16),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 child: Row(
                   children: [
                     Icon(
@@ -450,7 +463,7 @@ class _TasksScreenState extends State<TasksScreen> {
                   color: textColor,
                   fontFamily: appFontFamily)),
           const SizedBox(height: 16),
-          
+
           TextField(
             controller: _descriptionController,
             decoration: const InputDecoration(
@@ -473,7 +486,8 @@ class _TasksScreenState extends State<TasksScreen> {
             items: _roomies.map((user) {
               return DropdownMenuItem<String>(
                 value: user['id'],
-                child: Text(user['name']!, style: const TextStyle(color: textColor)),
+                child: Text(user['name']!,
+                    style: const TextStyle(color: textColor)),
               );
             }).toList(),
             onChanged: _isLoadingRoomies
@@ -503,7 +517,8 @@ class _TasksScreenState extends State<TasksScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.calendar_today_rounded, color: lightTextColor),
+                  const Icon(Icons.calendar_today_rounded,
+                      color: lightTextColor),
                   const SizedBox(width: 12),
                   Text(
                     DateFormat('dd.MM.yyyy HH:mm').format(_selectedDueDate),
@@ -598,7 +613,8 @@ class _TasksScreenState extends State<TasksScreen> {
           return SliverToBoxAdapter(
             child: Center(
                 child: Text('Error loading tasks',
-                    style: const TextStyle(color: Colors.red, fontFamily: appFontFamily))),
+                    style: const TextStyle(
+                        color: Colors.red, fontFamily: appFontFamily))),
           );
         }
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
@@ -607,7 +623,8 @@ class _TasksScreenState extends State<TasksScreen> {
                   child: Padding(
             padding: EdgeInsets.only(top: 40.0),
             child: Text('No tasks found!',
-                style: TextStyle(color: lightTextColor, fontFamily: appFontFamily)),
+                style: TextStyle(
+                    color: lightTextColor, fontFamily: appFontFamily)),
           )));
         }
 
@@ -663,7 +680,9 @@ class _TasksScreenState extends State<TasksScreen> {
           borderRadius: BorderRadius.circular(12),
         ),
         child: Text(
-          task.assignedToName.isNotEmpty ? task.assignedToName[0].toUpperCase() : '?',
+          task.assignedToName.isNotEmpty
+              ? task.assignedToName[0].toUpperCase()
+              : '?',
           style: const TextStyle(
               color: primaryColor, fontWeight: FontWeight.w900, fontSize: 16),
         ),
@@ -709,7 +728,9 @@ class _TasksScreenState extends State<TasksScreen> {
                   Text(
                     'Assigned to: ${task.assignedToName}',
                     style: const TextStyle(
-                        color: lightTextColor, fontSize: 12, fontFamily: appFontFamily),
+                        color: lightTextColor,
+                        fontSize: 12,
+                        fontFamily: appFontFamily),
                   ),
               ],
             ),

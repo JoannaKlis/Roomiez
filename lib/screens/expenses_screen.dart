@@ -6,6 +6,7 @@ import '../models/expense_history_item.dart';
 import '../services/firestore_service.dart';
 import 'navigation_screen.dart';
 import '../widgets/menu_bar.dart' as mb;
+import 'announcements_screen.dart';
 
 class ExpensesScreen extends StatefulWidget {
   const ExpensesScreen({super.key});
@@ -181,7 +182,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
             pinned: true,
             leading: Builder(
               builder: (context) => IconButton(
-                icon: const Icon(Icons.menu_rounded, size: 28, color: textColor),
+                icon:
+                    const Icon(Icons.menu_rounded, size: 28, color: textColor),
                 onPressed: () {
                   Scaffold.of(context).openDrawer();
                 },
@@ -214,9 +216,19 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
             centerTitle: true,
             actions: [
               IconButton(
-                icon: const Icon(Icons.notifications_none_rounded,
-                    size: 28, color: textColor),
-                onPressed: () {},
+                icon: const Icon(
+                  Icons.notifications_none_rounded,
+                  size: 28,
+                  color: textColor,
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AnnouncementsScreen(),
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -269,17 +281,17 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               ),
             ),
           ),
-          
+
           // Lista wydatków
           _buildExpensesList(),
-          
+
           const SliverToBoxAdapter(child: SizedBox(height: 40)),
         ],
       ),
       drawer: mb.CustomDrawer(
-        roomName: _groupName, 
+        roomName: _groupName,
         groupId: _userGroupId,
-        currentRoute: 'expenses', 
+        currentRoute: 'expenses',
       ),
     );
   }
@@ -335,7 +347,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               },
               borderRadius: BorderRadius.circular(16),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 child: Row(
                   children: [
                     Icon(
@@ -381,31 +394,31 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("New Expense", 
-            style: TextStyle(
-              fontSize: 18, 
-              fontWeight: FontWeight.bold, 
-              color: textColor,
-              fontFamily: appFontFamily
-            )
-          ),
+          const Text("New Expense",
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                  fontFamily: appFontFamily)),
           const SizedBox(height: 16),
-          
+
           TextField(
             controller: _descriptionController,
             decoration: const InputDecoration(
               hintText: 'What is this for?',
-              prefixIcon: Icon(Icons.description_outlined, color: lightTextColor),
+              prefixIcon:
+                  Icon(Icons.description_outlined, color: lightTextColor),
             ),
             style: const TextStyle(color: textColor, fontFamily: appFontFamily),
           ),
           const SizedBox(height: 12),
-          
+
           TextField(
             controller: _amountController,
             decoration: const InputDecoration(
               hintText: 'Amount',
-              prefixIcon: Icon(Icons.attach_money_rounded, color: lightTextColor),
+              prefixIcon:
+                  Icon(Icons.attach_money_rounded, color: lightTextColor),
               suffixText: 'PLN',
             ),
             style: const TextStyle(color: textColor, fontFamily: appFontFamily),
@@ -413,14 +426,12 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           ),
           const SizedBox(height: 16),
 
-          const Text("Split with:", 
-            style: TextStyle(
-              fontSize: 14, 
-              fontWeight: FontWeight.w600, 
-              color: lightTextColor,
-              fontFamily: appFontFamily
-            )
-          ),
+          const Text("Split with:",
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: lightTextColor,
+                  fontFamily: appFontFamily)),
           const SizedBox(height: 8),
 
           // Lista współlokatorów
@@ -442,9 +453,12 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   },
                   borderRadius: BorderRadius.circular(12),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
-                      color: isSelected ? primaryColor.withOpacity(0.05) : surfaceColor,
+                      color: isSelected
+                          ? primaryColor.withOpacity(0.05)
+                          : surfaceColor,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: isSelected ? primaryColor : Colors.transparent,
@@ -453,7 +467,9 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     child: Row(
                       children: [
                         Icon(
-                          isSelected ? Icons.check_circle_rounded : Icons.circle_outlined,
+                          isSelected
+                              ? Icons.check_circle_rounded
+                              : Icons.circle_outlined,
                           color: isSelected ? primaryColor : lightTextColor,
                           size: 20,
                         ),
@@ -462,7 +478,9 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                           userName,
                           style: TextStyle(
                             color: textColor,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
                             fontFamily: appFontFamily,
                           ),
                         ),
@@ -546,7 +564,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const SliverToBoxAdapter(
-            child: Center(child: Padding(
+            child: Center(
+                child: Padding(
               padding: EdgeInsets.all(20.0),
               child: CircularProgressIndicator(color: primaryColor),
             )),
@@ -556,17 +575,19 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           return SliverToBoxAdapter(
             child: Center(
                 child: Text('Error loading expenses',
-                    style: const TextStyle(color: Colors.red, fontFamily: appFontFamily))),
+                    style: const TextStyle(
+                        color: Colors.red, fontFamily: appFontFamily))),
           );
         }
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const SliverToBoxAdapter(
               child: Center(
                   child: Padding(
-                    padding: EdgeInsets.only(top: 40.0),
-                    child: Text('No expenses yet',
-                        style: TextStyle(color: lightTextColor, fontFamily: appFontFamily)),
-                  )));
+            padding: EdgeInsets.only(top: 40.0),
+            child: Text('No expenses yet',
+                style: TextStyle(
+                    color: lightTextColor, fontFamily: appFontFamily)),
+          )));
         }
 
         final allTransactions = snapshot.data!;
@@ -625,22 +646,30 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     Widget? actionButton;
 
     // --- LOGIKA PRZYCISKÓW ---
-    if (_selectedToggleIndex == 1) { // Owed
+    if (_selectedToggleIndex == 1) {
+      // Owed
       showActions = true;
       if (isMarkedAsPaid) {
         actionButton = _buildStatusBadge("Waiting for approval", Colors.orange);
       } else {
-        actionButton = _buildActionButton("Mark as Paid", Icons.send_rounded, () {
-          setState(() { _mockMarkedAsPaid.add(item.id); });
+        actionButton =
+            _buildActionButton("Mark as Paid", Icons.send_rounded, () {
+          setState(() {
+            _mockMarkedAsPaid.add(item.id);
+          });
         });
       }
-    } else if (_selectedToggleIndex == 2) { // Lent
+    } else if (_selectedToggleIndex == 2) {
+      // Lent
       showActions = true;
       if (isConfirmed) {
         actionButton = _buildStatusBadge("Settled", Colors.green);
       } else {
-        actionButton = _buildActionButton("Confirm Receipt", Icons.thumb_up_rounded, () {
-          setState(() { _mockConfirmedReceived.add(item.id); });
+        actionButton =
+            _buildActionButton("Confirm Receipt", Icons.thumb_up_rounded, () {
+          setState(() {
+            _mockConfirmedReceived.add(item.id);
+          });
         });
       }
     }
@@ -670,7 +699,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   color: surfaceColor,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.receipt_long_rounded, color: textColor, size: 24),
+                child: const Icon(Icons.receipt_long_rounded,
+                    color: textColor, size: 24),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -691,7 +721,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     Text(
                       _getSubtext(item),
                       style: const TextStyle(
-                        color: lightTextColor, 
+                        color: lightTextColor,
                         fontSize: 12,
                         fontFamily: appFontFamily,
                       ),
@@ -717,7 +747,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   Text(
                     DateFormat('dd MMM').format(item.date),
                     style: const TextStyle(
-                      color: lightTextColor, 
+                      color: lightTextColor,
                       fontSize: 12,
                       fontFamily: appFontFamily,
                     ),
@@ -726,7 +756,6 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               ),
             ],
           ),
-
           if (showActions) ...[
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
@@ -768,7 +797,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     );
   }
 
-  Widget _buildActionButton(String label, IconData icon, VoidCallback onPressed) {
+  Widget _buildActionButton(
+      String label, IconData icon, VoidCallback onPressed) {
     return TextButton.icon(
       onPressed: onPressed,
       style: TextButton.styleFrom(
@@ -780,7 +810,9 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         ),
       ),
       icon: Icon(icon, size: 18),
-      label: Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: appFontFamily)),
+      label: Text(label,
+          style: const TextStyle(
+              fontWeight: FontWeight.bold, fontFamily: appFontFamily)),
     );
   }
 }

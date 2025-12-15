@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart'; // Dodajemy to, żeby pob
 import '../services/firestore_service.dart';
 import '../constants.dart';
 import '../widgets/menu_bar.dart';
+import 'announcements_screen.dart';
 
 class MembersScreen extends StatefulWidget {
   const MembersScreen({super.key});
@@ -15,10 +16,11 @@ class MembersScreen extends StatefulWidget {
 class _MembersScreenState extends State<MembersScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   final String _currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
-  
+
   String _groupId = '';
   String _groupName = '';
-  List<Map<String, dynamic>> _members = []; // Zmieniono na dynamic, żeby trzymać też rolę
+  List<Map<String, dynamic>> _members =
+      []; // Zmieniono na dynamic, żeby trzymać też rolę
   bool _isLoading = true;
 
   @override
@@ -31,10 +33,10 @@ class _MembersScreenState extends State<MembersScreen> {
     try {
       // 1. Pobieramy ID grupy
       final groupId = await _firestoreService.getCurrentUserGroupId();
-      
+
       // 2. Pobieramy nazwę grupy
       final groupName = await _firestoreService.getGroupName(groupId);
-      
+
       // 3. Pobieramy listę członków WRAZ Z ROLAMI
       // Używamy bezpośredniego zapytania tutaj, aby mieć pewność, że mamy pole 'role'
       // bez konieczności modyfikowania FirestoreService w tej chwili.
@@ -48,7 +50,8 @@ class _MembersScreenState extends State<MembersScreen> {
         return {
           'id': doc.id,
           'name': '${data['firstName'] ?? ''} ${data['lastName'] ?? ''}'.trim(),
-          'role': data['role'] ?? 'Member', // Pobieramy rolę (np. 'manager' lub 'Member')
+          'role': data['role'] ??
+              'Member', // Pobieramy rolę (np. 'manager' lub 'Member')
         };
       }).toList();
 
@@ -74,7 +77,7 @@ class _MembersScreenState extends State<MembersScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: backgroundColor,
-      
+
       // --- APP BAR (Zaktualizowany styl) ---
       appBar: AppBar(
         backgroundColor: backgroundColor,
@@ -115,16 +118,26 @@ class _MembersScreenState extends State<MembersScreen> {
         ),
         centerTitle: true,
         actions: [
-          // Pusty przycisk dla zachowania symetrii lub powiadomienia
           IconButton(
-            icon: const Icon(Icons.notifications_none_rounded, size: 28, color: textColor),
-            onPressed: () {},
+            icon: const Icon(
+              Icons.notifications_none_rounded,
+              size: 28,
+              color: textColor,
+            ),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AnnouncementsScreen(),
+                ),
+              );
+            },
           ),
         ],
       ),
 
       drawer: CustomDrawer(
-        groupId: _groupId, 
+        groupId: _groupId,
         roomName: _groupName,
         currentRoute: 'members',
       ),
@@ -137,7 +150,8 @@ class _MembersScreenState extends State<MembersScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.group_off_rounded, size: 64, color: lightTextColor),
+                      const Icon(Icons.group_off_rounded,
+                          size: 64, color: lightTextColor),
                       const SizedBox(height: 16),
                       Text(
                         'No members found.',
@@ -153,25 +167,33 @@ class _MembersScreenState extends State<MembersScreen> {
               : ListView.separated(
                   padding: const EdgeInsets.all(20),
                   itemCount: _members.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 12),
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 12),
                   itemBuilder: (context, index) {
                     final member = _members[index];
                     final String userId = member['id'];
-                    final String name = member['name'].toString().isNotEmpty ? member['name'] : 'Unknown';
+                    final String name = member['name'].toString().isNotEmpty
+                        ? member['name']
+                        : 'Unknown';
                     // Sprawdzamy rolę (obsługuje różne warianty zapisu)
-                    final String role = (member['role'] ?? '').toString().toLowerCase();
+                    final String role =
+                        (member['role'] ?? '').toString().toLowerCase();
                     final bool isAdmin = role.contains('manager');
-                    
+
                     final bool isMe = userId == _currentUserId;
-                    final String initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+                    final String initial =
+                        name.isNotEmpty ? name[0].toUpperCase() : '?';
 
                     return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 16),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: isMe ? primaryColor.withOpacity(0.5) : borderColor, 
+                          color: isMe
+                              ? primaryColor.withOpacity(0.5)
+                              : borderColor,
                           width: isMe ? 1.5 : 1,
                         ),
                         boxShadow: [
@@ -204,7 +226,7 @@ class _MembersScreenState extends State<MembersScreen> {
                             ),
                           ),
                           const SizedBox(width: 16),
-                          
+
                           // --- DANE UŻYTKOWNIKA ---
                           Expanded(
                             child: Column(
@@ -228,10 +250,13 @@ class _MembersScreenState extends State<MembersScreen> {
                                     if (isAdmin) ...[
                                       const SizedBox(width: 8),
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
                                         decoration: BoxDecoration(
-                                          color: textColor, // Ciemny kolor dla admina
-                                          borderRadius: BorderRadius.circular(6),
+                                          color:
+                                              textColor, // Ciemny kolor dla admina
+                                          borderRadius:
+                                              BorderRadius.circular(6),
                                         ),
                                         child: const Text(
                                           'APARTMENT MANAGER',
@@ -250,7 +275,8 @@ class _MembersScreenState extends State<MembersScreen> {
                                   Padding(
                                     padding: const EdgeInsets.only(top: 4.0),
                                     child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 2),
                                       decoration: BoxDecoration(
                                         color: primaryColor.withOpacity(0.1),
                                         borderRadius: BorderRadius.circular(8),

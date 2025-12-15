@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/firestore_service.dart';
 import '../constants.dart';
 import '../widgets/menu_bar.dart';
+import 'announcements_screen.dart';
 
 class ShoppingScreen extends StatefulWidget {
   const ShoppingScreen({super.key});
@@ -15,7 +16,7 @@ class ShoppingScreen extends StatefulWidget {
 class _ShoppingScreenState extends State<ShoppingScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   final TextEditingController _itemController = TextEditingController();
-  
+
   // Dane nagłówka
   String _groupId = '';
   String _groupName = '';
@@ -93,7 +94,7 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: backgroundColor,
-      
+
       // --- APP BAR ---
       appBar: AppBar(
         backgroundColor: backgroundColor,
@@ -132,14 +133,25 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_none_rounded, size: 28, color: textColor),
-            onPressed: () {},
+            icon: const Icon(
+              Icons.notifications_none_rounded,
+              size: 28,
+              color: textColor,
+            ),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AnnouncementsScreen(),
+                ),
+              );
+            },
           ),
         ],
       ),
 
       drawer: CustomDrawer(
-        groupId: _groupId, 
+        groupId: _groupId,
         roomName: _groupName,
         currentRoute: 'shopping',
       ),
@@ -151,7 +163,8 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+              borderRadius:
+                  const BorderRadius.vertical(bottom: Radius.circular(24)),
               boxShadow: [
                 BoxShadow(
                   color: textColor.withOpacity(0.05),
@@ -173,7 +186,8 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
                           hintStyle: const TextStyle(color: lightTextColor),
                           fillColor: surfaceColor,
                           filled: true,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 14),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide.none,
@@ -193,15 +207,20 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: _isPriority ? Colors.redAccent.withOpacity(0.1) : surfaceColor,
+                          color: _isPriority
+                              ? Colors.redAccent.withOpacity(0.1)
+                              : surfaceColor,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: _isPriority ? Colors.redAccent : Colors.transparent,
+                            color: _isPriority
+                                ? Colors.redAccent
+                                : Colors.transparent,
                           ),
                         ),
                         child: Icon(
                           Icons.priority_high_rounded,
-                          color: _isPriority ? Colors.redAccent : lightTextColor,
+                          color:
+                              _isPriority ? Colors.redAccent : lightTextColor,
                         ),
                       ),
                     ),
@@ -222,19 +241,24 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
           // --- LISTA PRODUKTÓW ---
           Expanded(
             child: _isLoadingHeader
-                ? const Center(child: CircularProgressIndicator(color: primaryColor))
+                ? const Center(
+                    child: CircularProgressIndicator(color: primaryColor))
                 : StreamBuilder<QuerySnapshot>(
                     stream: FirebaseFirestore.instance
                         .collection('shopping_items')
                         .where('groupId', isEqualTo: _groupId)
-                        .orderBy('isBought', descending: false) // Nie kupione na górze
-                        .orderBy('createdAt', descending: true) // Najnowsze na górze
+                        .orderBy('isBought',
+                            descending: false) // Nie kupione na górze
+                        .orderBy('createdAt',
+                            descending: true) // Najnowsze na górze
                         .snapshots(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator(color: primaryColor));
+                        return const Center(
+                            child:
+                                CircularProgressIndicator(color: primaryColor));
                       }
-                      
+
                       final docs = snapshot.data?.docs ?? [];
 
                       if (docs.isEmpty) {
@@ -242,8 +266,9 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.shopping_basket_outlined, 
-                                size: 64, color: lightTextColor.withOpacity(0.3)),
+                              Icon(Icons.shopping_basket_outlined,
+                                  size: 64,
+                                  color: lightTextColor.withOpacity(0.3)),
                               const SizedBox(height: 16),
                               const Text(
                                 'Your shopping list is empty.\nAdd items above!',
@@ -279,7 +304,8 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
                                 color: Colors.redAccent,
                                 borderRadius: BorderRadius.circular(16),
                               ),
-                              child: const Icon(Icons.delete_outline, color: Colors.white),
+                              child: const Icon(Icons.delete_outline,
+                                  color: Colors.white),
                             ),
                             onDismissed: (direction) {
                               _deleteItem(doc.id);
@@ -288,33 +314,46 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
                               onTap: () => _toggleBought(doc.id, isBought),
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 200),
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 16),
                                 decoration: BoxDecoration(
-                                  color: isBought 
-                                      ? surfaceColor.withOpacity(0.6) // Przygaszone tło dla kupionych
+                                  color: isBought
+                                      ? surfaceColor.withOpacity(
+                                          0.6) // Przygaszone tło dla kupionych
                                       : Colors.white,
                                   borderRadius: BorderRadius.circular(16),
                                   border: Border.all(
-                                    color: isPriority && !isBought ? Colors.redAccent.withOpacity(0.3) : borderColor,
+                                    color: isPriority && !isBought
+                                        ? Colors.redAccent.withOpacity(0.3)
+                                        : borderColor,
                                   ),
-                                  boxShadow: isBought ? [] : [
-                                    BoxShadow(
-                                      color: textColor.withOpacity(0.02),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
+                                  boxShadow: isBought
+                                      ? []
+                                      : [
+                                          BoxShadow(
+                                            color: textColor.withOpacity(0.02),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
                                 ),
                                 child: Row(
                                   children: [
                                     // Checkbox customowy
                                     Icon(
-                                      isBought ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-                                      color: isBought ? primaryColor : (isPriority ? Colors.redAccent : lightTextColor),
+                                      isBought
+                                          ? Icons.check_circle_rounded
+                                          : Icons
+                                              .radio_button_unchecked_rounded,
+                                      color: isBought
+                                          ? primaryColor
+                                          : (isPriority
+                                              ? Colors.redAccent
+                                              : lightTextColor),
                                       size: 24,
                                     ),
                                     const SizedBox(width: 16),
-                                    
+
                                     // Nazwa
                                     Expanded(
                                       child: Text(
@@ -323,8 +362,12 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
                                           fontSize: 16,
                                           fontWeight: FontWeight.w600,
                                           fontFamily: appFontFamily,
-                                          color: isBought ? lightTextColor : textColor,
-                                          decoration: isBought ? TextDecoration.lineThrough : null,
+                                          color: isBought
+                                              ? lightTextColor
+                                              : textColor,
+                                          decoration: isBought
+                                              ? TextDecoration.lineThrough
+                                              : null,
                                           decorationColor: lightTextColor,
                                         ),
                                       ),
@@ -333,10 +376,13 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
                                     // Badge Priorytetu
                                     if (isPriority && !isBought)
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 4),
                                         decoration: BoxDecoration(
-                                          color: Colors.redAccent.withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(8),
+                                          color:
+                                              Colors.redAccent.withOpacity(0.1),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
                                         ),
                                         child: const Text(
                                           'PRIORITY',

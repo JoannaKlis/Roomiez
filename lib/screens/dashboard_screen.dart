@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../constants.dart';
 import '../services/firestore_service.dart';
 import 'home_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'login_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -13,6 +15,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _groupIdController = TextEditingController();
   final FirestoreService _firestoreService = FirestoreService();
+
+void _signOut() async {
+    await FirebaseAuth.instance.signOut();
+    if(!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (_) => false,
+      );
+  }
 
   void _handleCreate() async {
     if (_nameController.text.isEmpty) {
@@ -108,8 +119,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               leading: IconButton(
                 icon: const Icon(Icons.logout_rounded,
                     color: textColor),
-                onPressed: (){
-                  //wyloguj
+                onPressed: () async {
+                  _signOut();
                 }
               ),
             ),

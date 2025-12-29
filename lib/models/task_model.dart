@@ -23,15 +23,49 @@ class Task {
 
 // metoda do tworzenia obiektu z firestore 
 factory Task.fromMap(Map<String, dynamic> data, String documentId) {
+    // defensywna konwersja pola dueDate (może być Timestamp, DateTime lub brak)
+    DateTime due;
+    final raw = data['dueDate'];
+    if (raw == null) {
+      due = DateTime.now();
+    } else if (raw is Timestamp) {
+      due = raw.toDate();
+    } else if (raw is DateTime) {
+      due = raw;
+    } else if (raw is String) {
+      try {
+        due = DateTime.parse(raw);
+      } catch (_) {
+        due = DateTime.now();
+      }
+    } else {
+      due = DateTime.now();
+    }
+
+    // defensywne pobieranie pól i bezpieczne rzutowanie
+    final title = (data['title'] != null) ? data['title'].toString() : '';
+    final assignedToId = (data['assignedToId'] != null) ? data['assignedToId'].toString() : '';
+    final assignedToName = (data['assignedToName'] != null) ? data['assignedToName'].toString() : '';
+    final groupId = (data['groupId'] != null) ? data['groupId'].toString() : '';
+
+    bool isDone = false;
+    final rawIsDone = data['isDone'];
+    if (rawIsDone is bool) {
+      isDone = rawIsDone;
+    } else if (rawIsDone is int) {
+      isDone = rawIsDone != 0;
+    } else if (rawIsDone is String) {
+      isDone = rawIsDone.toLowerCase() == 'true';
+    }
+
     return Task(
       id: documentId,
-      title: data['title'] as String,
-      assignedToId: data['assignedToId'] as String,
-      assignedToName: data['assignedToName'] as String,
-      groupId: data['groupId'] as String,
-      isDone: data['isDone'] as bool,
-      // konwersja firestore Timestamp na DateTime
-      dueDate: (data['dueDate'] as Timestamp).toDate(), 
+      title: title,
+      assignedToId: assignedToId,
+      assignedToName: assignedToName,
+      groupId: groupId,
+      isDone: isDone,
+      dueDate: due,
     );
   }
 
@@ -43,7 +77,8 @@ factory Task.fromMap(Map<String, dynamic> data, String documentId) {
       'assignedToName': assignedToName,
       'groupId': groupId,
       'isDone': isDone,
-      'dueDate': dueDate, 
+      // zapisujemy jako Timestamp aby uniknąć niezgodności typów
+      'dueDate': Timestamp.fromDate(dueDate), 
     };
   }
 }

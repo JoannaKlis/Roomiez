@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:roomies/services/firestore_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../models/task_model.dart';
+import 'package:intl/intl.dart';
 import '../constants.dart';
 import 'tasks_screen.dart';
 import 'expenses_screen.dart';
@@ -204,10 +207,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(height: 30),
 
-              // --- SEKCJA: GRAFIK ---
-              const _SectionHeader(title: 'Cleaning schedule'),
+              // --- SEKCJA: ZADANIA ---
+              const _SectionHeader(title: 'Tasks'),
               const SizedBox(height: 12),
-              const _CleaningCard(),
+              const _TasksCard(),
 
               const SizedBox(height: 30),
 
@@ -329,58 +332,148 @@ class _ExpensesCard extends StatelessWidget {
   }
 }
 
-class _CleaningCard extends StatelessWidget {
-  const _CleaningCard({super.key});
+class _TasksCard extends StatelessWidget {
+  const _TasksCard({super.key});
+
+  String _dateLabel(DateTime due) {
+    final now = DateTime.now();
+    final diff = due.difference(DateTime(now.year, now.month, now.day));
+    if (diff.inDays == 0) return 'TODAY';
+    if (diff.inDays == 1) return 'TOMORROW';
+    return DateFormat('dd MMM').format(due).toUpperCase();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: borderColor),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+
+    return StreamBuilder<List<Task>>(
+      stream: FirestoreService().getTasks(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Container(
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: primaryColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(14),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: borderColor),
             ),
-            child: const Icon(Icons.cleaning_services_outlined,
-                size: 28, color: primaryColor),
-          ),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text("TOMORROW",
-                    style: TextStyle(
-                        color: primaryColor,
-                        fontFamily: appFontFamily,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 10,
-                        letterSpacing: 1.0)),
-                SizedBox(height: 2),
-                Text("Kitchen Cleaning",
-                    style: TextStyle(
-                        color: textColor,
-                        fontFamily: appFontFamily,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 16)),
-                Text("Next: Ana (Bathroom)",
-                    style: TextStyle(
-                        color: lightTextColor,
-                        fontFamily: appFontFamily,
-                        fontSize: 12)),
+            child: const Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (snapshot.hasError) {
+          final err = snapshot.error?.toString() ?? 'unknown error';
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: borderColor),
+            ),
+            child: Text('Error loading tasks: $err', style: const TextStyle(color: Colors.red)),
+          );
+        }
+
+        final tasks = snapshot.data ?? [];
+        final myTasks = tasks.where((t) => t.assignedToId == currentUserId).toList();
+
+        if (myTasks.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: borderColor),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(Icons.task_alt_outlined, size: 28, color: primaryColor),
+                ),
+                const SizedBox(width: 15),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      Text("NO TASKS",
+                          style: TextStyle(
+                              color: primaryColor,
+                              fontFamily: appFontFamily,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 10,
+                              letterSpacing: 1.0)),
+                      SizedBox(height: 6),
+                      Text("You have no assigned tasks",
+                          style: TextStyle(
+                              color: textColor,
+                              fontFamily: appFontFamily,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 16)),
+                    ],
+                  ),
+                )
               ],
             ),
-          )
-        ],
-      ),
+          );
+        }
+
+        myTasks.sort((a, b) => a.dueDate.compareTo(b.dueDate));
+        final nearest = myTasks.first;
+
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: borderColor),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(Icons.task_alt_outlined, size: 28, color: primaryColor),
+              ),
+              const SizedBox(width: 15),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(_dateLabel(nearest.dueDate),
+                        style: const TextStyle(
+                            color: primaryColor,
+                            fontFamily: appFontFamily,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 10,
+                            letterSpacing: 1.0)),
+                    const SizedBox(height: 2),
+                    Text(nearest.title,
+                        style: const TextStyle(
+                            color: textColor,
+                            fontFamily: appFontFamily,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16)),
+                    Text('Due: ${DateFormat('dd.MM.yyyy HH:mm').format(nearest.dueDate)}',
+                        style: const TextStyle(
+                            color: lightTextColor,
+                            fontFamily: appFontFamily,
+                            fontSize: 12)),
+                  ],
+                ),
+              )
+            ],
+          ),
+        );
+      },
     );
   }
 }

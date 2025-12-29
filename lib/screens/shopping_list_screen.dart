@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
+import 'dart:math';
 import '../services/firestore_service.dart';
 import '../constants.dart';
 import '../widgets/menu_bar.dart';
@@ -57,16 +58,9 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
   // 1. Dodawanie produktu
   Future<void> _addItem() async {
     final text = _itemController.text.trim();
-    if (text.isEmpty || _groupId.isEmpty) return;
+    if (text.isEmpty) return;
 
-    await FirebaseFirestore.instance.collection('shopping_items').add({
-      'name': text,
-      'isPriority': _isPriority,
-      'isBought': false,
-      'groupId': _groupId,
-      'createdAt': FieldValue.serverTimestamp(),
-      'addedBy': FirebaseAuth.instance.currentUser?.uid,
-    });
+    await _firestoreService.addShoppingItem(text, _isPriority);
 
     _itemController.clear();
     setState(() {
@@ -76,18 +70,12 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
 
   // 2. Przełączanie statusu (Kupione / Nie kupione)
   Future<void> _toggleBought(String docId, bool currentStatus) async {
-    await FirebaseFirestore.instance
-        .collection('shopping_items')
-        .doc(docId)
-        .update({'isBought': !currentStatus});
+    await _firestoreService.toggleShoppingItemStatus(docId, currentStatus);
   }
 
   // 3. Usuwanie produktu
   Future<void> _deleteItem(String docId) async {
-    await FirebaseFirestore.instance
-        .collection('shopping_items')
-        .doc(docId)
-        .delete();
+    await _firestoreService.deleteShoppingItem(docId);
   }
 
   @override
@@ -240,28 +228,67 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
 
           // --- LISTA PRODUKTÓW ---
           Expanded(
-            child: _isLoadingHeader
-                ? const Center(
-                    child: CircularProgressIndicator(color: primaryColor))
-                : StreamBuilder<QuerySnapshot>(
-                    stream: FirebaseFirestore.instance
-                        .collection('shopping_items')
-                        .where('groupId', isEqualTo: _groupId)
-                        .orderBy('isBought',
-                            descending: false) // Nie kupione na górze
-                        .orderBy('createdAt',
-                            descending: true) // Najnowsze na górze
-                        .snapshots(),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(
-                            child:
-                                CircularProgressIndicator(color: primaryColor));
+            child: StreamBuilder<List<Map<String, dynamic>>>(
+              stream: _firestoreService.getShoppingList(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                        child:
+                            CircularProgressIndicator(color: primaryColor));
+                  }
+
+                  if (snapshot.hasError) {
+                    debugPrint('shopping_list_stream error: ${snapshot.error}');
+                    return Center(
+                      child: Text('Error loading shopping list: ${snapshot.error}'),
+                    );
+                  }
+
+                  final allDocs = snapshot.data ?? [];
+
+                if (allDocs.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.shopping_basket_outlined,
+                                  size: 64,
+                                  color: lightTextColor.withOpacity(0.3)),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'Your shopping list is empty.\nAdd items above!',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: lightTextColor,
+                                  fontFamily: appFontFamily,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
                       }
 
-                      final docs = snapshot.data?.docs ?? [];
+                      // Filtrujemy items - pokazujemy tylko niekupione lub kupione w ostatniej godzinie
+                      final now = DateTime.now();
+                      final filteredItems = allDocs.where((item) {
+                        final isBought = item['isBought'] ?? false;
+                        
+                        // Jeśli nie kupione, pokazujemy
+                        if (!isBought) return true;
+                        
+                        // Jeśli kupione, sprawdzamy czy w ostatniej godzinie
+                        if (isBought) {
+                          final boughtAtRaw = item['boughtAt'];
+                          if (boughtAtRaw is Timestamp) {
+                            final boughtAt = boughtAtRaw.toDate();
+                            final timeSinceBought = now.difference(boughtAt);
+                            return timeSinceBought.inHours < 1;
+                          }
+                        }
+                        return false;
+                      }).toList();
 
-                      if (docs.isEmpty) {
+                      if (filteredItems.isEmpty) {
                         return Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -285,17 +312,17 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
 
                       return ListView.separated(
                         padding: const EdgeInsets.all(20),
-                        itemCount: docs.length,
+                        itemCount: filteredItems.length,
                         separatorBuilder: (_, __) => const SizedBox(height: 8),
                         itemBuilder: (context, index) {
-                          final doc = docs[index];
-                          final data = doc.data() as Map<String, dynamic>;
-                          final isBought = data['isBought'] ?? false;
-                          final isPriority = data['isPriority'] ?? false;
-                          final name = data['name'] ?? 'Unknown item';
+                          final item = filteredItems[index];
+                          final itemId = item['id'] as String;
+                          final isBought = item['isBought'] ?? false;
+                          final isPriority = item['isPriority'] ?? false;
+                          final name = item['name'] ?? 'Unknown item';
 
                           return Dismissible(
-                            key: Key(doc.id),
+                            key: Key(itemId),
                             direction: DismissDirection.endToStart,
                             background: Container(
                               alignment: Alignment.centerRight,
@@ -308,10 +335,10 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
                                   color: Colors.white),
                             ),
                             onDismissed: (direction) {
-                              _deleteItem(doc.id);
+                              _deleteItem(itemId);
                             },
                             child: GestureDetector(
-                              onTap: () => _toggleBought(doc.id, isBought),
+                              onTap: () => _toggleBought(itemId, isBought),
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 200),
                                 padding: const EdgeInsets.symmetric(
@@ -354,22 +381,35 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
                                     ),
                                     const SizedBox(width: 16),
 
-                                    // Nazwa
+                                    // Nazwa i timer
                                     Expanded(
-                                      child: Text(
-                                        name,
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
-                                          fontFamily: appFontFamily,
-                                          color: isBought
-                                              ? lightTextColor
-                                              : textColor,
-                                          decoration: isBought
-                                              ? TextDecoration.lineThrough
-                                              : null,
-                                          decorationColor: lightTextColor,
-                                        ),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            name,
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                              fontFamily: appFontFamily,
+                                              color: isBought
+                                                  ? lightTextColor
+                                                  : textColor,
+                                              decoration: isBought
+                                                  ? TextDecoration.lineThrough
+                                                  : null,
+                                              decorationColor: lightTextColor,
+                                            ),
+                                          ),
+                                          // Timer dla kupionego itemu
+                                          if (isBought && item['boughtAt'] != null)
+                                            Padding(
+                                              padding: const EdgeInsets.only(top: 4),
+                                              child: _ShoppingItemTimer(
+                                                boughtAt: (item['boughtAt'] as Timestamp).toDate(),
+                                              ),
+                                            ),
+                                        ],
                                       ),
                                     ),
 
@@ -405,6 +445,69 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
                   ),
           ),
         ],
+      ),
+    );
+  }
+}
+/// Widget stateful do pokazywania countdown'u dla kupionego przedmiotu
+class _ShoppingItemTimer extends StatefulWidget {
+  final DateTime boughtAt;
+
+  const _ShoppingItemTimer({required this.boughtAt});
+
+  @override
+  State<_ShoppingItemTimer> createState() => _ShoppingItemTimerState();
+}
+
+class _ShoppingItemTimerState extends State<_ShoppingItemTimer> {
+  late Timer _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final timeSinceBought = now.difference(widget.boughtAt);
+    final remainingSeconds = max(0, (60 * 60) - timeSinceBought.inSeconds); // 1h = 3600s
+    final minutesRemaining = remainingSeconds ~/ 60;
+    final secondsRemaining = remainingSeconds % 60;
+
+    // Renderujemy jako zniknie za X minut Y sekund
+    final timeText = minutesRemaining > 0
+        ? '$minutesRemaining min ${secondsRemaining}s'
+        : '${secondsRemaining}s';
+
+    // Zmiana koloru w zależności od czasu
+    Color textColor = Colors.green;
+    if (remainingSeconds < 300) {
+      // Ostatnie 5 minut - czerwone
+      textColor = Colors.red;
+    } else if (remainingSeconds < 600) {
+      // Ostatnie 10 minut - pomarańczowe
+      textColor = Colors.orange;
+    }
+
+    return Text(
+      'Zniknie za: $timeText',
+      style: TextStyle(
+        color: textColor,
+        fontSize: 10,
+        fontStyle: FontStyle.italic,
+        fontFamily: appFontFamily,
       ),
     );
   }

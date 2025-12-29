@@ -9,6 +9,7 @@ class Task {
   final String groupId; // ID grupy, do której należy zadanie
   bool isDone; // Status "zrobione" lub "niezrobione"
   final DateTime dueDate; // Np. "Tomorrow", "31.10.2025"
+  final DateTime? completedAt; // Timestamp kiedy zadanie zostało oznaczone jako zrobione
 
   Task({
     required this.id,
@@ -18,6 +19,7 @@ class Task {
     required this.groupId,
     required this.isDone,
     required this.dueDate,
+    this.completedAt,
   });
 
 
@@ -58,6 +60,21 @@ factory Task.fromMap(Map<String, dynamic> data, String documentId) {
       isDone = rawIsDone.toLowerCase() == 'true';
     }
 
+    // Defensywne pobieranie completedAt
+    DateTime? completedAt;
+    final rawCompletedAt = data['completedAt'];
+    if (rawCompletedAt is Timestamp) {
+      completedAt = rawCompletedAt.toDate();
+    } else if (rawCompletedAt is DateTime) {
+      completedAt = rawCompletedAt;
+    } else if (rawCompletedAt is String) {
+      try {
+        completedAt = DateTime.parse(rawCompletedAt);
+      } catch (_) {
+        completedAt = null;
+      }
+    }
+
     return Task(
       id: documentId,
       title: title,
@@ -66,6 +83,7 @@ factory Task.fromMap(Map<String, dynamic> data, String documentId) {
       groupId: groupId,
       isDone: isDone,
       dueDate: due,
+      completedAt: completedAt,
     );
   }
 
@@ -78,7 +96,8 @@ factory Task.fromMap(Map<String, dynamic> data, String documentId) {
       'groupId': groupId,
       'isDone': isDone,
       // zapisujemy jako Timestamp aby uniknąć niezgodności typów
-      'dueDate': Timestamp.fromDate(dueDate), 
+      'dueDate': Timestamp.fromDate(dueDate),
+      'completedAt': completedAt != null ? Timestamp.fromDate(completedAt!) : null,
     };
   }
 }

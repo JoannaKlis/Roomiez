@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'dart:async';
+import 'dart:math';
 import '../constants.dart';
 import '../models/task_model.dart';
 import '../services/firestore_service.dart';
@@ -629,7 +631,20 @@ class _TasksScreenState extends State<TasksScreen> {
         }
 
         final allTasks = snapshot.data!;
+        
+        // Filtrujemy zadania - chowamy zrobione starsze niż 1h
+        final now = DateTime.now();
         final filteredTasks = allTasks.where((task) {
+          // Jeśli zadanie jest zrobione
+          if (task.isDone && task.completedAt != null) {
+            // Sprawdzamy czy zostało oznaczone jako zrobione ponad 1h temu
+            final timeSinceCompletion = now.difference(task.completedAt!);
+            if (timeSinceCompletion.inHours >= 1) {
+              return false; // Ukrywamy to zadanie
+            }
+          }
+          
+          // Filtrujemy po przypisaniu (jeśli wybrany "My tasks")
           if (_selectedToggleIndex == 1) {
             return task.assignedToId == _currentUserId;
           }
@@ -732,6 +747,12 @@ class _TasksScreenState extends State<TasksScreen> {
                         fontSize: 12,
                         fontFamily: appFontFamily),
                   ),
+                // Timer dla zrobionego zadania
+                if (task.isDone && task.completedAt != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: _TaskCompletionTimer(completedAt: task.completedAt!),
+                  ),
               ],
             ),
           ),
@@ -752,6 +773,70 @@ class _TasksScreenState extends State<TasksScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Widget stateful do pokazywania countdown'u dla zrobionego zadania
+class _TaskCompletionTimer extends StatefulWidget {
+  final DateTime completedAt;
+
+  const _TaskCompletionTimer({required this.completedAt});
+
+  @override
+  State<_TaskCompletionTimer> createState() => _TaskCompletionTimerState();
+}
+
+class _TaskCompletionTimerState extends State<_TaskCompletionTimer> {
+  late Timer _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final timeSinceCompletion = now.difference(widget.completedAt);
+    final remainingSeconds = max(0, (60 * 60) - timeSinceCompletion.inSeconds); // 1h = 3600s
+    final minutesRemaining = remainingSeconds ~/ 60;
+    final secondsRemaining = remainingSeconds % 60;
+
+    // Renderujemy jako zniknie za X minut Y sekund
+    final timeText = minutesRemaining > 0
+        ? '$minutesRemaining min ${secondsRemaining}s'
+        : '${secondsRemaining}s';
+
+    // Zmiana koloru w zależności od czasu
+    Color textColor = Colors.green;
+    if (remainingSeconds < 300) {
+      // Ostatnie 5 minut - czerwone
+      textColor = Colors.red;
+    } else if (remainingSeconds < 600) {
+      // Ostatnie 10 minut - pomarańczowe
+      textColor = Colors.orange;
+    }
+
+    return Text(
+      'Zniknie za: $timeText',
+      style: TextStyle(
+        color: textColor,
+        fontSize: 11,
+        fontStyle: FontStyle.italic,
+        fontFamily: appFontFamily,
       ),
     );
   }

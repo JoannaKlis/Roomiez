@@ -211,7 +211,14 @@ class FirestoreService {
 
   // aktualizacja statusu zadania
   Future<void> updateTaskStatus(String taskId, bool isDone) async {
-    await _firestore.collection('tasks').doc(taskId).update({'isDone': isDone});
+    final updateData = <String, dynamic>{
+      'isDone': isDone,
+      'completedAt': isDone ? Timestamp.now() : FieldValue.serverTimestamp(),
+    };
+    if (!isDone) {
+      updateData['completedAt'] = FieldValue.delete();
+    }
+    await _firestore.collection('tasks').doc(taskId).update(updateData);
   }
 
   // dodawanie nowego wydatku
@@ -299,8 +306,7 @@ class FirestoreService {
   Future<void> addShoppingItem(String name, bool isPriority) async {
     final groupId = await getCurrentUserGroupId();
     final userId = FirebaseAuth.instance.currentUser?.uid;
-
-    await _firestore.collection('shopping_items').add({
+    final docRef = await _firestore.collection('shopping_items').add({
       'name': name,
       'isPriority': isPriority,
       'isBought': false,
@@ -308,6 +314,7 @@ class FirestoreService {
       'createdAt': FieldValue.serverTimestamp(),
       'addedBy': userId,
     });
+    debugPrint('addShoppingItem: added ${docRef.id} to group $groupId');
   }
 
   // 2. Pobierz listę zakupów
@@ -320,10 +327,12 @@ class FirestoreService {
           .orderBy('createdAt', descending: true) // Najnowsze na górze
           .snapshots()
           .map((snapshot) {
+        debugPrint('getShoppingList: snapshot for group $groupId contains ${snapshot.docs.length} docs');
         return snapshot.docs.map((doc) {
-          final data = doc.data();
-          data['id'] = doc.id; // Dodajemy ID dokumentu do mapy
-          return data;
+          final data = doc.data() as Map<String, dynamic>;
+          final map = Map<String, dynamic>.from(data);
+          map['id'] = doc.id; // Dodajemy ID dokumentu do mapy
+          return map;
         }).toList();
       });
     });
@@ -331,9 +340,11 @@ class FirestoreService {
 
   // 3. Zmień status (Kupione/Niekupione)
   Future<void> toggleShoppingItemStatus(String itemId, bool currentStatus) async {
-    await _firestore.collection('shopping_items').doc(itemId).update({
+    final updateData = <String, dynamic>{
       'isBought': !currentStatus,
-    });
+      'boughtAt': !currentStatus ? Timestamp.now() : FieldValue.delete(),
+    };
+    await _firestore.collection('shopping_items').doc(itemId).update(updateData);
   }
 
   // 4. Usuń produkt

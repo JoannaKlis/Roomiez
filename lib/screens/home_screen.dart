@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:roomies/services/firestore_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
+import 'dart:math';
 import '../models/task_model.dart';
 import 'package:intl/intl.dart';
 import '../constants.dart';
@@ -376,7 +379,7 @@ class _TasksCard extends StatelessWidget {
         }
 
         final tasks = snapshot.data ?? [];
-        final myTasks = tasks.where((t) => t.assignedToId == currentUserId).toList();
+        final myTasks = tasks.where((t) => t.assignedToId == currentUserId && !t.isDone).toList();
 
         if (myTasks.isEmpty) {
           return Container(
@@ -487,26 +490,105 @@ class _ShoppingCard extends StatelessWidget {
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: FirestoreService().getShoppingList(),
       builder: (context, snapshot) {
-        final items = (snapshot.data ?? []).take(3).toList(); // Pokaż max 3
+        // Filtrujemy - pokazujemy tylko niekupione lub kupione w ostatniej godzinie
+        final now = DateTime.now();
+        final allItems = snapshot.data ?? [];
+        final filteredItems = allItems.where((item) {
+          final isBought = item['isBought'] ?? false;
+          
+          // Jeśli nie kupione, pokazujemy
+          if (!isBought) return true;
+          
+          // Jeśli kupione, sprawdzamy czy w ostatniej godzinie
+          if (isBought) {
+            final boughtAtRaw = item['boughtAt'];
+            if (boughtAtRaw is Timestamp) {
+              final boughtAt = boughtAtRaw.toDate();
+              final timeSinceBought = now.difference(boughtAt);
+              return timeSinceBought.inHours < 1;
+            }
+          }
+          return false;
+        }).toList();
+
+        // Sortujemy - priorytetowe na górze, potem niekupione, najnowsze na górze
+        filteredItems.sort((a, b) {
+          final priorityA = a['isPriority'] ?? false;
+          final priorityB = b['isPriority'] ?? false;
+          if (priorityA != priorityB) return priorityB ? 1 : -1; // Priorytetowe first
+          
+          final boughtA = a['isBought'] ?? false;
+          final boughtB = b['isBought'] ?? false;
+          if (boughtA != boughtB) return boughtA ? 1 : -1; // Niekupione first
+          
+          // Najnowsze na górze
+          final createdA = a['createdAt'] as Timestamp?;
+          final createdB = b['createdAt'] as Timestamp?;
+          if (createdA == null || createdB == null) return 0;
+          return createdB.compareTo(createdA);
+        });
+
+        final itemsToShow = filteredItems.take(3).toList();
+        
         return Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: borderColor)),
           child: Column(
             children: [
-               if (items.isEmpty) const Text("List is empty! Add something.", style: TextStyle(color: lightTextColor)),
-               for (var item in items)
-                 GestureDetector(
-                    onTap: () => FirestoreService().toggleShoppingItemStatus(item['id'], item['isBought'] ?? false),
-                    child: Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Row(children: [
-                        Icon(item['isBought'] == true ? Icons.check_circle : Icons.circle_outlined, color: item['isBought'] == true ? primaryColor : borderColor),
-                        const SizedBox(width: 12),
-                        Text(item['name'], style: TextStyle(decoration: item['isBought'] == true ? TextDecoration.lineThrough : null)),
-                    ])),
-                 )
+               if (itemsToShow.isEmpty) const Text("List is empty! Add something.", style: TextStyle(color: lightTextColor)),
+               for (var item in itemsToShow)
+                 _buildShoppingItem(context, item),
             ],
           ),
         );
       }
+    );
+  }
+
+  Widget _buildShoppingItem(BuildContext context, Map<String, dynamic> item) {
+    final isBought = item['isBought'] ?? false;
+    final isPriority = item['isPriority'] ?? false;
+    
+    return GestureDetector(
+      onTap: () => FirestoreService().toggleShoppingItemStatus(item['id'], isBought),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Icon(
+              isBought ? Icons.check_circle : Icons.circle_outlined,
+              color: isBought ? primaryColor : borderColor,
+            ),
+            if (isPriority)
+              Padding(
+                padding: const EdgeInsets.only(left: 6),
+                child: Icon(
+                  Icons.priority_high_rounded,
+                  color: Colors.redAccent,
+                  size: 16,
+                ),
+              ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item['name'] ?? 'Unknown',
+                    style: TextStyle(
+                      decoration: isBought ? TextDecoration.lineThrough : null,
+                      color: isBought ? lightTextColor : textColor,
+                    ),
+                  ),
+                  // Timer dla kupionego itemu
+                  if (isBought)
+                    _ShoppingItemTimer(boughtAt: (item['boughtAt'] as Timestamp).toDate()),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -604,6 +686,69 @@ class _SectionHeader extends StatelessWidget {
           fontWeight: FontWeight.w800,
           letterSpacing: -0.5,
         ),
+      ),
+    );
+  }
+}
+/// Widget stateful do pokazywania countdown'u dla kupionego przedmiotu na home screen
+class _ShoppingItemTimer extends StatefulWidget {
+  final DateTime boughtAt;
+
+  const _ShoppingItemTimer({required this.boughtAt});
+
+  @override
+  State<_ShoppingItemTimer> createState() => _ShoppingItemTimerState();
+}
+
+class _ShoppingItemTimerState extends State<_ShoppingItemTimer> {
+  late Timer _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final timeSinceBought = now.difference(widget.boughtAt);
+    final remainingSeconds = max(0, (60 * 60) - timeSinceBought.inSeconds); // 1h = 3600s
+    final minutesRemaining = remainingSeconds ~/ 60;
+    final secondsRemaining = remainingSeconds % 60;
+
+    // Renderujemy jako zniknie za X minut Y sekund
+    final timeText = minutesRemaining > 0
+        ? '$minutesRemaining min ${secondsRemaining}s'
+        : '${secondsRemaining}s';
+
+    // Zmiana koloru w zależności od czasu
+    Color textColor = Colors.green;
+    if (remainingSeconds < 300) {
+      // Ostatnie 5 minut - czerwone
+      textColor = Colors.red;
+    } else if (remainingSeconds < 600) {
+      // Ostatnie 10 minut - pomarańczowe
+      textColor = Colors.orange;
+    }
+
+    return Text(
+      'Zniknie za: $timeText',
+      style: TextStyle(
+        color: textColor,
+        fontSize: 10,
+        fontStyle: FontStyle.italic,
+        fontFamily: appFontFamily,
       ),
     );
   }

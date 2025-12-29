@@ -431,4 +431,74 @@ class FirestoreService {
 
     await batch.commit();
   }
+
+  // --- WKLEJ NA SAMYM DOLE KLASY FirestoreService ---
+
+  // 1. Pobierz 2 ostatnie wydatki (do Home Screen)
+  Stream<List<ExpenseHistoryItem>> getRecentExpensesStream(String groupId) {
+    return _firestore.collection('expenses')
+        .where('groupId', isEqualTo: groupId)
+        .orderBy('date', descending: true)
+        .limit(2)
+        .snapshots()
+        .map((s) => s.docs.map((d) => ExpenseHistoryItem.fromMap(d.data(), d.id)).toList());
+  }
+
+  // --- ROZLICZENIA (SETTLEMENTS - POCZEKALNIA) ---
+
+  // 1. Wyślij prośbę o rozliczenie (User A klika "Settle Up")
+  Future<void> requestSettlement(String toUserId, double amount) async {
+    final fromUserId = FirebaseAuth.instance.currentUser?.uid;
+    final groupId = await getCurrentUserGroupId();
+    
+    await _firestore.collection('settlements').add({
+      'fromUserId': fromUserId, // Kto oddaje
+      'toUserId': toUserId,     // Kto ma potwierdzić
+      'amount': amount,
+      'groupId': groupId,
+      'status': 'pending',      // Oczekuje
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // 2. Potwierdź otrzymanie pieniędzy (User B klika "Confirm")
+  Future<void> confirmSettlement(String settlementId, String fromUserId, double amount) async {
+    final groupId = await getCurrentUserGroupId();
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+
+    // A. Dodaj oficjalny wydatek "Zwrot", który wyzeruje dług w algorytmie
+    final repayment = ExpenseHistoryItem(
+      id: '', 
+      description: 'Repayment (Zwrot)', 
+      payerId: fromUserId,     // Płatnikiem jest ten, kto oddawał (User A)
+      amount: amount, 
+      date: DateTime.now(), 
+      participantsIds: [currentUserId!], // Koszt ponosi tylko ten, kto odebrał (User B)
+      groupId: groupId,
+    );
+    await addExpense(repayment);
+
+    // B. Usuń prośbę z poczekalni
+    await _firestore.collection('settlements').doc(settlementId).delete();
+  }
+
+  // 3. Odrzuć (User B klika "Nie dostałem")
+  Future<void> denySettlement(String settlementId) async {
+    await _firestore.collection('settlements').doc(settlementId).delete();
+  }
+
+  // 4. Pobierz listę oczekujących rozliczeń
+  Stream<List<Map<String, dynamic>>> getPendingSettlementsStream() {
+    return Stream.fromFuture(getCurrentUserGroupId()).asyncExpand((groupId) {
+      return _firestore.collection('settlements')
+          .where('groupId', isEqualTo: groupId)
+          .snapshots()
+          .map((s) => s.docs.map((d) {
+             var data = d.data();
+             data['id'] = d.id;
+             return data;
+          }).toList());
+    });
+  }
+
 }

@@ -7,6 +7,7 @@ import '../services/firestore_service.dart';
 import 'navigation_screen.dart';
 import '../widgets/menu_bar.dart' as mb;
 import 'announcements_screen.dart';
+import '../utils/split_bill_logic.dart';
 
 class ExpensesScreen extends StatefulWidget {
   const ExpensesScreen({super.key});
@@ -32,7 +33,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   List<Map<String, String>> _roomies = [];
   bool _isLoadingRoomies = true;
 
-  final double _netBalance = 50.00;
+  double _myNetBalance = 0.0;
   bool _isNewExpenseFormVisible = false;
 
   // Symulacja backendu
@@ -92,6 +93,90 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         );
       }
     }
+  }
+
+  // --- NOWE METODY POMOCNICZE ---
+
+  // ZAMIEŃ STARĄ METODĘ NA TĘ:
+  void _handleSettleUp(String receiverId, double amount) {
+    // Zamiast od razu księgować, wysyłamy prośbę
+    _firestoreService.requestSettlement(receiverId, amount).then((_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Request sent! Waiting for confirmation.'), backgroundColor: Colors.blue),
+      );
+    });
+  }
+
+  // PODMIEŃ CAŁĄ METODĘ _buildDebtCard NA TĘ:
+  Widget _buildDebtCard(Debt debt, String otherName, {required bool isOwedByMe, bool isPending = false, String? pendingSettlementId}) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white, borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: (isPending || pendingSettlementId != null && pendingSettlementId.isNotEmpty) ? Colors.orange : borderColor),
+      ),
+      child: Column( // Zmieniamy Row na Column dla lepszego układu przy potwierdzaniu
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(isOwedByMe ? "You owe $otherName" : "$otherName owes you", style: const TextStyle(color: lightTextColor, fontSize: 12, fontFamily: appFontFamily)),
+                Text("${debt.amount.toStringAsFixed(2)} PLN", style: TextStyle(color: isOwedByMe ? Colors.red : Colors.green, fontWeight: FontWeight.bold, fontSize: 18, fontFamily: appFontFamily)),
+              ]),
+              
+              // LOGIKA PRZYCISKÓW
+              if (isOwedByMe) 
+                // JA WISZĘ
+                isPending 
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(color: Colors.orange.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
+                      child: const Text("Waiting...", style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 12)),
+                    )
+                  : ElevatedButton(
+                      onPressed: () => _handleSettleUp(debt.toUser, debt.amount),
+                      style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
+                      child: const Text("Settle Up", style: TextStyle(color: Colors.white)),
+                    )
+              else 
+                // KTOŚ MI WISI (i nie ma prośby)
+                if (pendingSettlementId == null || pendingSettlementId.isEmpty)
+                   const SizedBox() // Nic nie pokazuj, czekamy aż on kliknie
+            ],
+          ),
+          
+          // JEŚLI KTOŚ MI WISI I KLIKNĄŁ "ODDAŁEM" -> Pokaż przyciski potwierdzenia
+          if (!isOwedByMe && pendingSettlementId != null && pendingSettlementId.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: Colors.orange.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text("Confirm receipt?", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+                  Row(
+                    children: [
+                      InkWell(
+                        onTap: () => _firestoreService.denySettlement(pendingSettlementId),
+                        child: const Padding(padding: EdgeInsets.all(8.0), child: Icon(Icons.close, color: Colors.red)),
+                      ),
+                      const SizedBox(width: 10),
+                      InkWell(
+                        onTap: () => _firestoreService.confirmSettlement(pendingSettlementId, debt.fromUser, debt.amount),
+                        child: const Padding(padding: EdgeInsets.all(8.0), child: Icon(Icons.check, color: Colors.green, size: 28)),
+                      ),
+                    ],
+                  )
+                ],
+              ),
+            )
+          ]
+        ],
+      ),
+    );
   }
 
   void _addNewExpense() {
@@ -324,7 +409,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                '${_netBalance >= 0 ? '+' : ''}${_netBalance.toStringAsFixed(2)} PLN',
+                '${_myNetBalance >= 0 ? '+' : ''}${_myNetBalance.toStringAsFixed(2)} PLN',
                 style: const TextStyle(
                   color: textColor, // Ciemny tekst (czarny)
                   fontSize: 28,
@@ -559,64 +644,77 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
   /// Lista wydatków (filtrowana)
   Widget _buildExpensesList() {
+    // 1. STREAM WYDATKÓW (Do obliczania długów)
     return StreamBuilder<List<ExpenseHistoryItem>>(
       stream: _firestoreService.getExpenses(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const SliverToBoxAdapter(
-            child: Center(
-                child: Padding(
-              padding: EdgeInsets.all(20.0),
-              child: CircularProgressIndicator(color: primaryColor),
-            )),
-          );
-        }
-        if (snapshot.hasError) {
-          return SliverToBoxAdapter(
-            child: Center(
-                child: Text('Error loading expenses',
-                    style: const TextStyle(
-                        color: Colors.red, fontFamily: appFontFamily))),
-          );
-        }
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const SliverToBoxAdapter(
-              child: Center(
-                  child: Padding(
-            padding: EdgeInsets.only(top: 40.0),
-            child: Text('No expenses yet',
-                style: TextStyle(
-                    color: lightTextColor, fontFamily: appFontFamily)),
-          )));
-        }
+      builder: (context, snapshotExpenses) {
+        if (!snapshotExpenses.hasData) return const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()));
+        
+        // 2. STREAM ROZLICZEŃ (Do sprawdzania statusów "Pending")
+        return StreamBuilder<List<Map<String, dynamic>>>(
+          stream: _firestoreService.getPendingSettlementsStream(),
+          builder: (context, snapshotSettlements) {
+            
+            final expenses = snapshotExpenses.data!;
+            final pendingSettlements = snapshotSettlements.data ?? [];
 
-        final allTransactions = snapshot.data!;
+            // --- Logika Salda (Bez zmian) ---
+            double myBalance = 0.0;
+            for (var e in expenses) {
+              if (e.payerId == _currentUserId) myBalance += e.amount;
+              if (e.participantsIds.contains(_currentUserId)) {
+                myBalance -= (e.amount / e.participantsIds.length);
+              }
+            }
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (_myNetBalance != myBalance && mounted) setState(() => _myNetBalance = myBalance);
+            });
 
-        final filteredTransactions = allTransactions.where((item) {
-          if (_selectedToggleIndex == 1) {
-            // Owed
-            return item.participantsIds.contains(_currentUserId) &&
-                item.payerId != _currentUserId;
+            // --- Algorytm Rozliczeń ---
+            List<String> allUsers = _roomies.map((u) => u['id']!).toList();
+            if (allUsers.isEmpty) allUsers.add(_currentUserId);
+            final debts = SplitBillLogic.calculateDebts(expenses, allUsers);
+
+            // --- ZAKŁADKA "OWED" (Komu ja wiszę) ---
+            if (_selectedToggleIndex == 1) {
+              final myDebts = debts.where((d) => d.fromUser == _currentUserId).toList();
+              if (myDebts.isEmpty) return const SliverToBoxAdapter(child: Center(child: Padding(padding: EdgeInsets.only(top:20), child: Text("All settled! 🎉"))));
+              
+              return SliverList(delegate: SliverChildBuilderDelegate((_, i) {
+                var d = myDebts[i];
+                var name = _roomies.firstWhere((u) => u['id'] == d.toUser, orElse: () => {'name': 'Unknown'})['name']!;
+                
+                // Sprawdź czy już wysłałem prośbę
+                bool isPending = pendingSettlements.any((s) => s['fromUserId'] == _currentUserId && s['toUserId'] == d.toUser);
+                
+                return _buildDebtCard(d, name, isOwedByMe: true, isPending: isPending);
+              }, childCount: myDebts.length));
+            }
+
+            // --- ZAKŁADKA "LENT" (Kto mi wisi) ---
+            if (_selectedToggleIndex == 2) {
+              final oweMe = debts.where((d) => d.toUser == _currentUserId).toList();
+              if (oweMe.isEmpty) return const SliverToBoxAdapter(child: Center(child: Padding(padding: EdgeInsets.only(top:20), child: Text("No one owes you."))));
+
+              return SliverList(delegate: SliverChildBuilderDelegate((_, i) {
+                var d = oweMe[i];
+                var name = _roomies.firstWhere((u) => u['id'] == d.fromUser, orElse: () => {'name': 'Unknown'})['name']!;
+                
+                // Sprawdź czy ktoś zgłosił, że mi oddał
+                var pendingRequest = pendingSettlements.firstWhere(
+                    (s) => s['fromUserId'] == d.fromUser && s['toUserId'] == _currentUserId, 
+                    orElse: () => {}
+                );
+
+                return _buildDebtCard(d, name, isOwedByMe: false, pendingSettlementId: pendingRequest['id']);
+              }, childCount: oweMe.length));
+            }
+
+            // --- ZAKŁADKA "ALL" (Historia) ---
+            return SliverList(delegate: SliverChildBuilderDelegate((context, index) {
+                return Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: _buildExpenseListItem(expenses[index]));
+            }, childCount: expenses.length));
           }
-          if (_selectedToggleIndex == 2) {
-            // Lent
-            return item.payerId == _currentUserId &&
-                item.participantsIds.length > 1;
-          }
-          return true; // All
-        }).toList();
-
-        return SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) {
-              final item = filteredTransactions[index];
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                child: _buildExpenseListItem(item),
-              );
-            },
-            childCount: filteredTransactions.length,
-          ),
         );
       },
     );

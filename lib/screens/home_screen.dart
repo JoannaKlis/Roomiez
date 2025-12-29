@@ -6,6 +6,7 @@ import 'expenses_screen.dart';
 import 'announcements_screen.dart';
 import 'profile_edit_screen.dart';
 import '../widgets/menu_bar.dart';
+import '../models/expense_history_item.dart'; 
 
 class HomeScreen extends StatefulWidget {
   final String roomName;
@@ -190,6 +191,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const _SectionHeader(title: 'Recent expenses'),
               const SizedBox(height: 12),
               _ExpensesCard(
+                groupId: widget.groupId,
                 onGoToExpenses: () {
                   Navigator.push(
                     context,
@@ -288,114 +290,41 @@ class _SquareActionCard extends StatelessWidget {
 }
 
 class _ExpensesCard extends StatelessWidget {
+  final String groupId; // Musimy to przekazać
   final VoidCallback onGoToExpenses;
 
-  const _ExpensesCard({super.key, required this.onGoToExpenses});
+  const _ExpensesCard({super.key, required this.groupId, required this.onGoToExpenses});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: borderColor),
-        boxShadow: [
-          BoxShadow(
-            color: textColor.withOpacity(0.03),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return StreamBuilder<List<ExpenseHistoryItem>>(
+      stream: FirestoreService().getRecentExpensesStream(groupId), // Pobieranie z bazy
+      builder: (context, snapshot) {
+        final expenses = snapshot.data ?? [];
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: borderColor)),
+          child: Column(
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text('Your balance',
-                      style: TextStyle(
-                          color: lightTextColor,
-                          fontFamily: appFontFamily,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600)),
-                  SizedBox(height: 4),
-                  Text('+50,00 PLN',
-                      style: TextStyle(
-                          color: textColor,
-                          fontFamily: appFontFamily,
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5)),
-                ],
-              ),
-              ElevatedButton(
-                onPressed: onGoToExpenses,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: textColor, // Ciemny przycisk dla kontrastu
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text('See details',
-                    style: TextStyle(
-                        color: Colors.white, fontFamily: appFontFamily)),
-              ),
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                 const Text("Recent Activity", style: TextStyle(fontWeight: FontWeight.bold, fontFamily: appFontFamily)),
+                 GestureDetector(onTap: onGoToExpenses, child: const Text("See all", style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold))),
+              ]),
+              const Divider(height: 20, color: borderColor),
+              if (expenses.isEmpty) const Padding(padding: EdgeInsets.all(8.0), child: Text("No recent expenses", style: TextStyle(color: lightTextColor))),
+              ...expenses.map((e) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6.0),
+                child: Row(children: [
+                   const Icon(Icons.receipt_long, size: 18, color: lightTextColor),
+                   const SizedBox(width: 8),
+                   Expanded(child: Text(e.description, style: const TextStyle(fontWeight: FontWeight.w600))),
+                   Text("${e.amount.toStringAsFixed(2)} PLN", style: const TextStyle(fontWeight: FontWeight.bold)),
+                ]),
+              )),
             ],
           ),
-          const SizedBox(height: 20),
-          _expenseRow(
-              'Bread', 'Martin', '5,50 PLN', Icons.shopping_cart_outlined),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12.0),
-            child: Divider(color: borderColor, height: 1),
-          ),
-          _expenseRow('Rent', 'Ana', '600 PLN', Icons.receipt_long_outlined),
-        ],
-      ),
-    );
-  }
-
-  Widget _expenseRow(String item, String who, String cost, IconData icon) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: surfaceColor,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: textColor, size: 20),
-        ),
-        const SizedBox(width: 15),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(item,
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontFamily: appFontFamily,
-                    fontSize: 15,
-                    color: textColor)),
-            Text(who,
-                style: const TextStyle(
-                    fontSize: 12,
-                    fontFamily: appFontFamily,
-                    color: lightTextColor)),
-          ],
-        ),
-        const Spacer(),
-        Text(cost,
-            style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontFamily: appFontFamily,
-                fontSize: 15,
-                color: textColor)),
-      ],
+        );
+      }
     );
   }
 }
@@ -457,50 +386,39 @@ class _CleaningCard extends StatelessWidget {
 }
 
 // --- INTERAKTYWNA LISTA ZAKUPÓW ---
-class _ShoppingCard extends StatefulWidget {
-  const _ShoppingCard({super.key});
-
-  @override
-  State<_ShoppingCard> createState() => _ShoppingCardState();
-}
-
-class _ShoppingCardState extends State<_ShoppingCard> {
-  List<Map<String, dynamic>> items = [
-    {'name': 'Toilet paper', 'isPriority': true, 'isBought': false},
-    {'name': 'Milk', 'isPriority': false, 'isBought': false},
-    {'name': 'Dish soap', 'isPriority': false, 'isBought': false},
-  ];
-
-  void _toggleItem(int index) {
-    setState(() {
-      items[index]['isBought'] = !items[index]['isBought'];
-    });
-  }
+class _ShoppingCard extends StatelessWidget {
+  const _ShoppingCard(); // Usuń state, teraz to Stateless
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(8), // Mniejszy padding kontenera
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: borderColor),
-      ),
-      child: Column(
-        children: [
-          for (int i = 0; i < items.length; i++)
-            _ShoppingItem(
-              key: ValueKey(items[i]['name']),
-              name: items[i]['name'],
-              isPriority: items[i]['isPriority'],
-              isBought: items[i]['isBought'],
-              onTap: () => _toggleItem(i),
-            ),
-        ],
-      ),
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: FirestoreService().getShoppingList(),
+      builder: (context, snapshot) {
+        final items = (snapshot.data ?? []).take(3).toList(); // Pokaż max 3
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: borderColor)),
+          child: Column(
+            children: [
+               if (items.isEmpty) const Text("List is empty! Add something.", style: TextStyle(color: lightTextColor)),
+               for (var item in items)
+                 GestureDetector(
+                    onTap: () => FirestoreService().toggleShoppingItemStatus(item['id'], item['isBought'] ?? false),
+                    child: Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Row(children: [
+                        Icon(item['isBought'] == true ? Icons.check_circle : Icons.circle_outlined, color: item['isBought'] == true ? primaryColor : borderColor),
+                        const SizedBox(width: 12),
+                        Text(item['name'], style: TextStyle(decoration: item['isBought'] == true ? TextDecoration.lineThrough : null)),
+                    ])),
+                 )
+            ],
+          ),
+        );
+      }
     );
   }
 }
+
+
 
 class _ShoppingItem extends StatelessWidget {
   final String name;

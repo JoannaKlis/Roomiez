@@ -8,6 +8,7 @@ import 'navigation_screen.dart';
 import '../widgets/menu_bar.dart' as mb;
 import 'announcements_screen.dart';
 import '../utils/split_bill_logic.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ExpensesScreen extends StatefulWidget {
   const ExpensesScreen({super.key});
@@ -644,37 +645,69 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
   /// Lista wydatków (filtrowana)
   Widget _buildExpensesList() {
-    // 1. STREAM WYDATKÓW (Do obliczania długów)
-    return StreamBuilder<List<ExpenseHistoryItem>>(
-      stream: _firestoreService.getExpenses(),
-      builder: (context, snapshotExpenses) {
-        if (!snapshotExpenses.hasData) return const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()));
+    // --- POPRAWKA: Zabezpieczenie przed pustym ID ---
+    // Jeśli jeszcze nie załadowaliśmy ID grupy, wyświetl kółko ładowania zamiast błędu
+    if (_userGroupId.isEmpty) {
+      return const SliverToBoxAdapter(
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    // ------------------------------------------------
+
+    // 1. ZMIANA: Nasłuchujemy Grupy (tam są salda)...
+    return StreamBuilder<DocumentSnapshot>(
+      stream: _firestoreService.getGroupStream(_userGroupId),
+      // ... reszta kodu bez zmian ...
+      builder: (context, snapshotGroup) {
+        if (!snapshotGroup.hasData) return const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()));
+
+        // Pobieramy salda z grupy
+        Map<String, double> balances = {};
+        var groupData = snapshotGroup.data!.data() as Map<String, dynamic>?;
         
-        // 2. STREAM ROZLICZEŃ (Do sprawdzania statusów "Pending")
+        if (groupData != null && groupData.containsKey('balances')) {
+          Map<String, dynamic> raw = groupData['balances'];
+          raw.forEach((k, v) => balances[k] = (v as num).toDouble());
+        } else {
+          // --- WAŻNE: Jeśli brak sald (bo to stara grupa), wyświetl przycisk naprawy ---
+          return SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                children: [
+                  const Text("Database optimization needed for new features."),
+                  const SizedBox(height: 10),
+                  ElevatedButton(
+                    onPressed: () async {
+                      await _firestoreService.migrateOldExpensesToBalances();
+                      setState(() {}); // Odśwież po migracji
+                    },
+                    child: const Text("Optimize & Fix Balances"),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // --- Stream Rozliczeń (bez zmian) ---
         return StreamBuilder<List<Map<String, dynamic>>>(
           stream: _firestoreService.getPendingSettlementsStream(),
           builder: (context, snapshotSettlements) {
-            
-            final expenses = snapshotExpenses.data!;
             final pendingSettlements = snapshotSettlements.data ?? [];
-
-            // --- Logika Salda (Bez zmian) ---
-            double myBalance = 0.0;
-            for (var e in expenses) {
-              if (e.payerId == _currentUserId) myBalance += e.amount;
-              if (e.participantsIds.contains(_currentUserId)) {
-                myBalance -= (e.amount / e.participantsIds.length);
-              }
-            }
-            WidgetsBinding.instance.addPostFrameCallback((_) {
+            
+            // --- AKTUALIZACJA MOJEGO SALDA ---
+            double myBalance = balances[_currentUserId] ?? 0.0;
+            // Hack żeby odświeżyć widget licznika na górze (niezalecane w build, ale działa w MVP)
+             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (_myNetBalance != myBalance && mounted) setState(() => _myNetBalance = myBalance);
             });
 
-            // --- Algorytm Rozliczeń ---
-            List<String> allUsers = _roomies.map((u) => u['id']!).toList();
-            if (allUsers.isEmpty) allUsers.add(_currentUserId);
-            final debts = SplitBillLogic.calculateDebts(expenses, allUsers);
+            // --- NOWA LOGIKA: Liczymy długi z mapy ---
+            final debts = SplitBillLogic.calculateDebtsFromMap(balances);
 
+            // ... Reszta kodu (zakładki Owed/Lent) bez zmian ...
+            // ... (Ale uwaga: Zakładka "ALL" (historia) musi teraz mieć WŁASNY StreamBuilder) ...
             // --- ZAKŁADKA "OWED" (Komu ja wiszę) ---
             if (_selectedToggleIndex == 1) {
               final myDebts = debts.where((d) => d.fromUser == _currentUserId).toList();
@@ -711,9 +744,28 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
             }
 
             // --- ZAKŁADKA "ALL" (Historia) ---
-            return SliverList(delegate: SliverChildBuilderDelegate((context, index) {
-                return Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: _buildExpenseListItem(expenses[index]));
-            }, childCount: expenses.length));
+            // --- ZAKŁADKA "ALL" (Historia) ---
+            // --- ZAKŁADKA "ALL" (Historia) ---
+            // Musimy pobrać historię osobnym zapytaniem, bo główny stream patrzy teraz na Grupę (Salda)
+            return StreamBuilder<List<ExpenseHistoryItem>>(
+              stream: _firestoreService.getExpenses(), 
+              builder: (context, snapshotHistory) {
+                 // Jeśli się ładuje lub nie ma danych
+                 if (!snapshotHistory.hasData) {
+                   return const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()));
+                 }
+                 
+                 final history = snapshotHistory.data!;
+                 
+                 if (history.isEmpty) {
+                   return const SliverToBoxAdapter(child: Center(child: Text("No expenses yet.")));
+                 }
+
+                 return SliverList(delegate: SliverChildBuilderDelegate((context, index) {
+                    return Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: _buildExpenseListItem(history[index]));
+                 }, childCount: history.length));
+              }
+            );
           }
         );
       },

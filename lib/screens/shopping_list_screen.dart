@@ -6,6 +6,8 @@ import '../services/firestore_service.dart';
 import '../constants.dart';
 import '../widgets/menu_bar.dart';
 import 'announcements_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Potrzebne do ID usera
+import '../models/expense_history_item.dart';      // Potrzebne do stworzenia wydatku
 
 class ShoppingScreen extends StatefulWidget {
   const ShoppingScreen({super.key});
@@ -68,9 +70,94 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
     });
   }
 
-  // 2. Przełączanie statusu (Kupione / Nie kupione)
-  Future<void> _toggleBought(String docId, bool currentStatus) async {
+  // --- ZMODYFIKOWANA METODA TOGGLE ---
+  Future<void> _toggleBought(String docId, bool currentStatus, String itemName) async {
+    // Jeśli przedmiot jest właśnie kupowany (zmieniamy z false na true)
+    if (!currentStatus) {
+      await _showAddToExpensesDialog(itemName);
+    }
+    // Wykonaj standardową zmianę statusu w bazie
     await _firestoreService.toggleShoppingItemStatus(docId, currentStatus);
+  }
+
+  // --- NOWY DIALOG "DODAJ DO WYDATKÓW" ---
+  Future<void> _showAddToExpensesDialog(String itemName) async {
+    final TextEditingController _priceController = TextEditingController();
+
+    // Pytamy użytkownika
+    bool? shouldAdd = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Bought '$itemName'?"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text("Do you want to add this cost to group expenses?"),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _priceController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: "Price",
+                suffixText: "PLN",
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false), // Nie dodawaj
+            child: const Text("No, just mark check"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true), // Dodaj
+            child: const Text("Add Expense"),
+          ),
+        ],
+      ),
+    );
+
+    // Logika dodawania
+    if (shouldAdd == true && _priceController.text.isNotEmpty) {
+      final valStr = _priceController.text.replaceAll(',', '.'); // Fix dla przecinków
+      final double? amount = double.tryParse(valStr);
+      
+      if (amount != null && amount > 0) {
+        try {
+          final currentUser = FirebaseAuth.instance.currentUser;
+          if (currentUser == null) return;
+
+          // Pobieramy członków grupy, żeby podzielić rachunek na wszystkich
+          final users = await _firestoreService.getCurrentApartmentUsers(_groupId);
+          var participantIds = users.map((u) => u['id']!).toList();
+          
+          // Fallback: jak lista pusta, dodaj chociaż siebie
+          if (participantIds.isEmpty) participantIds.add(currentUser.uid);
+
+          final newExpense = ExpenseHistoryItem(
+            id: '',
+            description: 'Shopping: $itemName',
+            payerId: currentUser.uid,
+            amount: amount,
+            date: DateTime.now(),
+            participantsIds: participantIds, 
+            groupId: _groupId,
+          );
+
+          await _firestoreService.addExpense(newExpense);
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Expense added automatically!'), backgroundColor: Colors.green),
+            );
+          }
+        } catch (e) {
+          debugPrint("Error adding expense from shopping list: $e");
+        }
+      }
+    }
   }
 
   // 3. Usuwanie produktu
@@ -338,7 +425,7 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
                               _deleteItem(itemId);
                             },
                             child: GestureDetector(
-                              onTap: () => _toggleBought(itemId, isBought),
+                              onTap: () => _toggleBought(itemId, isBought, name),
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 200),
                                 padding: const EdgeInsets.symmetric(

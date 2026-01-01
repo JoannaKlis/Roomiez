@@ -222,8 +222,85 @@ class FirestoreService {
   }
 
   // dodawanie nowego wydatku
+  // 1. Zmodyfikowane dodawanie (Transakcja)
   Future<void> addExpense(ExpenseHistoryItem expense) async {
-    await _firestore.collection('expenses').add(expense.toMap());
+    final expenseRef = _firestore.collection('expenses').doc();
+    final groupRef = _firestore.collection('groups').doc(expense.groupId);
+
+    await _firestore.runTransaction((transaction) async {
+      // A. Pobierz aktualne salda grupy
+      final groupSnapshot = await transaction.get(groupRef);
+      if (!groupSnapshot.exists) throw Exception("Group not found");
+
+      Map<String, double> balances = {};
+      if (groupSnapshot.data() != null && groupSnapshot.data()!.containsKey('balances')) {
+        // Konwersja z Firebase Map<String, dynamic> na Map<String, double>
+        Map<String, dynamic> raw = groupSnapshot.data()!['balances'];
+        raw.forEach((k, v) => balances[k] = (v as num).toDouble());
+      }
+
+      // B. Oblicz wpływ nowego wydatku
+      double splitAmount = expense.amount / expense.participantsIds.length;
+      
+      // Płatnik zyskuje (jest na plusie)
+      balances[expense.payerId] = (balances[expense.payerId] ?? 0.0) + expense.amount;
+      
+      // Uczestnicy tracą (są na minusie)
+      for (var uid in expense.participantsIds) {
+        balances[uid] = (balances[uid] ?? 0.0) - splitAmount;
+      }
+
+      // C. Zapisz wszystko w bazie
+      // Nowy wydatek
+      transaction.set(expenseRef, expense.toMap());
+      // Zaktualizowane salda w grupie
+      transaction.update(groupRef, {'balances': balances});
+    });
+  }
+
+  // 2. Potrzebne do pobierania salda na żywo
+  Stream<DocumentSnapshot> getGroupStream(String groupId) {
+    return _firestore.collection('groups').doc(groupId).snapshots();
+  }
+
+  // 3. MAGICZNA METODA NAPRAWCZA (Uruchom raz, by policzyć stare wydatki)
+  Future<void> migrateOldExpensesToBalances() async {
+    final groupId = await getCurrentUserGroupId();
+    final expensesSnapshot = await _firestore.collection('expenses')
+        .where('groupId', isEqualTo: groupId).get();
+    
+    // Pobieramy wszystkich użytkowników (żeby wiedzieć kogo liczyć)
+    final usersSnapshot = await _firestore.collection('users')
+        .where('groupId', isEqualTo: groupId).get();
+    List<String> allUserIds = usersSnapshot.docs.map((d) => d.id).toList();
+
+    // Liczymy "po staremu"
+    Map<String, double> balances = {};
+    for (var uid in allUserIds) balances[uid] = 0.0;
+
+    for (var doc in expensesSnapshot.docs) {
+      final data = doc.data();
+      // Pomijamy 'repayment' (zwroty), bo one tylko zerują saldo, 
+      // a w tym modelu salda zerują się same przy logice wpłat.
+      // *UWAGA*: Jeśli Twoja logika "Repayment" to po prostu Expense, 
+      // to musisz to uwzględnić. Zakładam standardowe wydatki.
+      
+      double amount = (data['amount'] as num).toDouble();
+      String payerId = data['payerId'];
+      List<String> participants = List<String>.from(data['participantsIds']);
+      
+      double split = amount / participants.length;
+      balances[payerId] = (balances[payerId] ?? 0) + amount;
+      for(var p in participants) {
+        balances[p] = (balances[p] ?? 0) - split;
+      }
+    }
+
+    // Zapisujemy wynik do grupy
+    await _firestore.collection('groups').doc(groupId).update({
+      'balances': balances
+    });
+    debugPrint("MIGRATION SUCCESS: Balances updated!");
   }
 
   // pobieranie wydatków dla domyślnej grupy

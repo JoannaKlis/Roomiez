@@ -738,13 +738,13 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
           ],
         ),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none_rounded,
-                size: 28, color: textColor),
-            onPressed: () {},
-          ),
-        ],
+        // actions: [
+        //   IconButton(
+        //     icon: const Icon(Icons.notifications_none_rounded,
+        //         size: 28, color: textColor),
+        //     onPressed: () {},
+        //   ),
+        // ],
       ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20),
@@ -784,7 +784,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
           ],
         ),
       ),
-      drawer: mb.CustomDrawer(roomName: _groupName, groupId: _userGroupId),
+      drawer: mb.CustomDrawer(roomName: _groupName, groupId: _userGroupId, currentRoute: "announcements",),
     );
   }
 }

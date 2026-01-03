@@ -118,15 +118,16 @@ class _LoginScreenState extends State<LoginScreen> {
         child: CustomScrollView(
           slivers: <Widget>[
             // Pasek nawigacji (powrót)
-            SliverAppBar(
+            const SliverAppBar(
               backgroundColor: backgroundColor,
               elevation: 0,
               floating: true,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                    color: textColor), // Nowocześniejsza strzałka
-                onPressed: () => Navigator.pop(context),
-              ),
+              leading: SizedBox(height: 10),
+              // leading: IconButton(
+              //   icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              //       color: textColor), // Nowocześniejsza strzałka
+              //   onPressed: () => Navigator.pop(context),
+              // ),
             ),
 
             SliverPadding(

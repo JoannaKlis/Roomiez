@@ -17,16 +17,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final FirestoreService _firestoreService = FirestoreService();
 
 void _signOut() async {
-    await FirebaseAuth.instance.signOut();
-    if(!mounted) return;
+  try {
+    await FirebaseAuth.instance.signOut(); //wylogowanie użytkownika
+    if(!mounted) return; // mounted = flaga informująca czy widget jest teraz widoczny dla uzytkownika
+    //jeśli nie jest - np. wyłączono nagle aplikacje (przypadek brzegowy) nie powinno być przekierowania
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-        (_) => false,
+        MaterialPageRoute(builder: (_) => const LoginScreen()), //przekierowanie na ekran logowania
+        (_) => false, // usunięcie poprzednich ekranów ze stosu - brak możliwości cofnięcia się do widoków chronionych po wylogowaniu
       );
+    } catch (e) {
+      debugPrint('Sign out error: $e');
+    }
   }
 
+
   void _handleCreate() async {
-    if (_nameController.text.isEmpty) {
+    if (_nameController.text.trim().isEmpty) {
       showSnackBarColor(
           context, 'Please enter the name of your place!', Colors.red);
       return;
@@ -37,14 +43,15 @@ void _signOut() async {
 
     if (groupId != "") {
       showSnackBarColor(context, "Success", Colors.green);
-      Navigator.pushReplacement(
-        context,
+      Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
           builder: (_) => HomeScreen(
-            roomName: _nameController.text.trim(),
+            roomName: _nameController.text.trim(), //controller przechowuje dokladnie to, co wpisane w polu tekstowym,
+            //.trim() usuwa spacje z początku i końca tekstu
             groupId: groupId,
           ),
         ),
+        (_) => false,
       );
     } else {
       showSnackBarColor(context, "Cannot create a group", Colors.red);
@@ -68,14 +75,14 @@ void _signOut() async {
 
       if (mounted) {
         showSnackBarColor(context, "Success! Joined $realGroupName", Colors.green);
-        Navigator.pushReplacement(
-          context,
+        Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
             builder: (_) => HomeScreen(
               roomName: realGroupName, // Tutaj przekazujemy pobraną nazwę
               groupId: groupIdInput,
             ),
           ),
+          (_)=>false,
         );
       }
     } else {

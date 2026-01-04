@@ -72,43 +72,47 @@ class FirestoreService {
 
   Future<String> createNewGroup(String Name) async {
     try {
-      final String userId = FirebaseAuth.instance.currentUser!.uid;
-      var uuid = Uuid();
-      String groupId;
-      final snapshot = await _firestore.collection('groups').get();
-      List groups = snapshot.docs.map((doc) => doc.id).toList();
+      final String userId = FirebaseAuth.instance.currentUser!.uid; //pobranie id obecnie zalogowanego użytkownika
+      var uuid = Uuid(); //funkcja generująca kod uuid przypisana do zmiennej uuid
+      String groupId; //deklaracja zmiennej przechowującej id przyszło utworzonej grupy
+      final snapshot = await _firestore.collection('groups').get(); //przechwycenie zawartości kolekcji 'groups'
+      List groups = snapshot.docs.map((doc) => doc.id).toList(); //zebranie wszystkich id grup z bazy do listy groups
       do {
-        groupId = uuid.v4().substring(0, 6);
-      } while (groups.contains(groupId));
-      await _firestore.collection('groups').doc(groupId).set({
+        groupId = uuid.v4().substring(0, 6); //generowanie kandydata na id nowej grupy złożonego z sześciu znaków poprzez przycięcie kodu uuid
+      } while (groups.contains(groupId)); //generowanie id nowej grupy tak długo jak ten kod NIE jest unikalny - 
+      //- Pętla przerwie się gdy wygenerowanego kodu nie będzie w bazie. To oznacza znalezienie unikalnego kodu który jest kodem nowej grupy 
+      await _firestore.collection('groups').doc(groupId).set({ //tworzenie grupy o unikatowym id i nazwie przekazanej do funkcji
         'name': Name,
       });
+      // ! osoba która tworzy grupę otrzymuje rolę managera 
       await _firestore.collection('users').doc(userId).update({
         'role': UserRole.apartmentManager,
         'groupId': groupId,
       });
-      return groupId;
+      return groupId; //funkcja zwraca id nowej grupy, ponieważ udało się utworzyć grupę i zmodyfikować odpowiednio dane użytkownika
     } catch (e) {
       debugPrint("createNewGroup error: $e");
-      return "";
+      return ""; //w razie wszelkich problemów przy tworzeniu grupy funkcja zwróci pusty String
     }
   }
 
   Future<bool> addUserToGroup(String groupId) async {
     try {
-      final String userId = FirebaseAuth.instance.currentUser!.uid;
-      final snapshot = await _firestore.collection('groups').get();
-      List groups = snapshot.docs.map((doc) => doc.id).toList();
-      if (!groups.contains(groupId)) {
-        return false;
+      final String userId = FirebaseAuth.instance.currentUser!.uid; //pobranie id obecnie zalogowanego użytkownika
+      final snapshot = await _firestore.collection('groups').get(); //przechwycenie zawartości kolekcji 'groups'
+      List groups = snapshot.docs.map((doc) => doc.id).toList(); //zebranie wszystkich id grup z bazy do listy groups
+      if (!groups.contains(groupId)) { //jeśli nie ma w bazie grupy o podanym id, grupa nie istnieje i nie można dołączyć użytkownika
+        return false; //funkcja zwraca false jeśli nie uda się dołączyć użytkownika do grupy
       }
-      await _firestore.collection('users').doc(userId).update({
+      //jeśli nie zwrócono false to oznacza, że grupa o podanym id istenieje i należy je przypisać do groupId użytkownika
+      //oraz nadać mu domyślną rolę (jako osoby która nie tworzy tylko dołącza do grupy) 
+      await _firestore.collection('users').doc(userId).update({ 
         'groupId': groupId,
         'role': 'Member', // Domyślna rola
       });
-      return true;
+      return true; //jeśli wszystko zwiazane z dołączeniem do grupy się powiodło funkcja zwraca true
     } catch (e) {
-      debugPrint("addUserToGroup error: $e");
+      debugPrint("addUserToGroup error: $e"); //w razie wszelkich problemów przy dołączaniu do grupy funkcja zwróci false
       return false;
     }
   }

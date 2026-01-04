@@ -32,57 +32,64 @@ void _signOut() async {
 
 
   void _handleCreate() async {
-    if (_nameController.text.trim().isEmpty) {
-      showSnackBarColor(
-          context, 'Please enter the name of your place!', Colors.red);
-      return;
+    if (_nameController.text.trim().isEmpty) { // sprawdzenie czy podano nazwę grupy
+      showSnackBarColor( // jeśli nie podano nazwy grupy wywoływana jest funkcja, która wyświetla komunikat o podanym kolorze i treści
+          context, 'Please enter the name of your place!', Colors.red); //informacja o brakującej nazwie grupy
+      return; // brak nazwy grupy powoduje zakończenie funkcji tworzenia grupy
     }
 
     final groupId =
-        await _firestoreService.createNewGroup(_nameController.text);
+        await _firestoreService.createNewGroup(_nameController.text); //wywoływana jest funkcja z firestrore_srevice.dart
+        //która odpowiada za utworzenie grupy - wygenerowanie unikalnego kodu i zapisanie danych w bazie
+        // jesli uda się utworzyć grupę to funkcja zwróci jej unikalny kod dołączenia
 
-    if (groupId != "") {
-      showSnackBarColor(context, "Success", Colors.green);
+    if (groupId != "") { //jeśli nie udało się utworzyć grupy funkcja createNewGroup zwróciła pusty String
+      showSnackBarColor(context, "Success", Colors.green); //informacja o sukcesie tworzenia grupy
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
-          builder: (_) => HomeScreen(
+          builder: (_) => HomeScreen( //do zbudowania ekranu głównego grupy potrzebne są nazwa i id grupy
             roomName: _nameController.text.trim(), //controller przechowuje dokladnie to, co wpisane w polu tekstowym,
             //.trim() usuwa spacje z początku i końca tekstu
             groupId: groupId,
           ),
         ),
-        (_) => false,
+        (_) => false, //usunięcie wszelkich poprzednich ekranów ze stosu - nie powinno być możliwości 'cofnięcia się' do ekranu logowania
+        //(w tym celu trzeba się wylogować)
       );
     } else {
-      showSnackBarColor(context, "Cannot create a group", Colors.red);
+      showSnackBarColor(context, "Cannot create a group", Colors.red); //jeśli nie udało się utworzyć grupy pojawia się odpowiedni komunikat
     }
   }
 
   void _handleJoin() async {
-    final groupIdInput = _groupIdController.text.trim();
+    final groupIdInput = _groupIdController.text.trim(); //usunięcie ewentualnych spacji z początku i końca wpisanego kodu grupy
 
-    if (groupIdInput.isEmpty) {
-      showSnackBarColor(context, 'Please enter an invite code!', Colors.red);
+    if (groupIdInput.isEmpty) { //sprawdzenie czy podano cokolwiek w miejscu na kod dołączenia do grupy
+      showSnackBarColor(context, 'Please enter an invite code!', Colors.red); //jeśli nie podano żadnego teksu komunikat z prośbą o podanie kodu
       return;
     }
 
-    // 1. Próba dołączenia do grupy
-    bool success = await _firestoreService.addUserToGroup(groupIdInput);
+    //wywołanie funkcji z firestore_service.dart która dodaje użytkownika jeśli istnieje grupa o podanym kodzie (wówczas funkcja zwróci true)
+    bool success = await _firestoreService.addUserToGroup(groupIdInput); 
 
     if (success) {
-      // 2. Pobranie PRAWDZIWEJ nazwy grupy z bazy (żeby nie wyświetlać kodu jako nazwy)
+      //pobranie nazwy grupy jeśli pomyślnie dołączono 
       String realGroupName = await _firestoreService.getGroupName(groupIdInput);
 
       if (mounted) {
+        //wyświetlenie komunikatu o pomyślnym dołączeniu do grupy o pobranej nazwie
         showSnackBarColor(context, "Success! Joined $realGroupName", Colors.green);
+        // przeniesienie do ekranu głównego danej grupy i usunięcie wszelkich poprzednich ekranów ze stosu
+        // nie powinno byc możliwości powrotu do ekranu logowania lub dołączenia -
+        // - jedynym sposobem wyjścia z grupy / wylogowania się powinny być przyciski w menu_bar
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
             builder: (_) => HomeScreen(
-              roomName: realGroupName, // Tutaj przekazujemy pobraną nazwę
+              roomName: realGroupName,
               groupId: groupIdInput,
             ),
           ),
-          (_)=>false,
+          (_) => false,
         );
       }
     } else {
@@ -100,6 +107,8 @@ void _signOut() async {
     super.dispose();
   }
 
+// funkcja do wyświetlania komunikatu w formie małego paska na dole ekranu, który po chwili znika
+// przyjmuje treść wiadomości i kolor tła 
   static void showSnackBarColor(
       BuildContext context, String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(

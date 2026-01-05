@@ -17,6 +17,7 @@ class LoginScreen extends StatefulWidget {
 
 // kontrolery do zarządzania wprowadzonymi danymi
 class _LoginScreenState extends State<LoginScreen> {
+  bool _isLoggingIn = false;
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final AuthService _authService = AuthService();
@@ -27,9 +28,12 @@ class _LoginScreenState extends State<LoginScreen> {
   // hasło: adminadmin
   // funkcja do obsługi logowania
   void _handleLogin() async {
+  if (_isLoggingIn) return;
+  setState(() => _isLoggingIn = true);
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
       AuthService.showErrorSnackBar(
           context, 'Please enter both email and password.');
+      setState(() => _isLoggingIn = false);
       return;
     }
 
@@ -39,6 +43,12 @@ class _LoginScreenState extends State<LoginScreen> {
       _passwordController.text,
     );
 
+  if (errorMessage != null) {
+    AuthService.showErrorSnackBar(context, errorMessage);
+    setState(() => _isLoggingIn = false);
+    return;
+  }
+
     if (errorMessage == null) {
       // uwierzytelnienie sukces -> pobieranie roli i  grupy z Firestore
       try {
@@ -47,7 +57,10 @@ class _LoginScreenState extends State<LoginScreen> {
         final userProfile = await _firestoreService
             .getCurrentUserProfile(); // Pobiera resztę danych (groupId)
 
-        if (!mounted) return;
+        if (!mounted) {
+          setState(() => _isLoggingIn = false);
+          return;
+        }
 
         // przekierowanie na podstawie roli usera
         if (userRole == UserRole.administrator) {
@@ -61,6 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
           );
 
           // przekierowanie admina
+          setState(() => _isLoggingIn = false);
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
@@ -82,6 +96,7 @@ class _LoginScreenState extends State<LoginScreen> {
             duration: Duration(milliseconds: 1500),
           ),
         );
+        setState(() => _isLoggingIn = false);
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => groupId != "default_group"
@@ -93,9 +108,11 @@ class _LoginScreenState extends State<LoginScreen> {
         if (mounted) {
           AuthService.showErrorSnackBar(
               context, 'Login successful, but failed to load user data: $e');
+              setState(() => _isLoggingIn = false);
         }
       }
     } else {
+      setState(() => _isLoggingIn = false);
       if (mounted) {
         AuthService.showErrorSnackBar(context, errorMessage);
       }
@@ -215,6 +232,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     TextField(
                       controller: _passwordController,
                       obscureText: true,
+                      textInputAction: TextInputAction.done,
+                      onSubmitted: (_) => _handleLogin(),
                       decoration: const InputDecoration(
                         hintText: 'Enter your password',
                         prefixIcon: Icon(Icons.lock_outline_rounded,
@@ -223,25 +242,37 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
 
                     // Link "Forgot Password"
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () {},
-                        style: TextButton.styleFrom(
-                          foregroundColor: lightTextColor,
-                        ),
-                        child: const Text('Forgot password?'),
-                      ),
-                    ),
+                    // Align(
+                    //   alignment: Alignment.centerRight,
+                    //   child: TextButton(
+                    //     onPressed: () {},
+                    //     style: TextButton.styleFrom(
+                    //       foregroundColor: lightTextColor,
+                    //     ),
+                    //     child: const Text('Forgot password?'),
+                    //   ),
+                    // ),
 
                     const SizedBox(height: 30),
 
                     // --- PRZYCISK LOGOWANIA ---
                     SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _handleLogin,
-                        child: const Text('Log In'),
+                          width: double.infinity,
+                          child: ElevatedButton(
+                          onPressed: _handleLogin, // blokada kliknięcia
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryColor, // zawsze kolor tła
+                          ),
+                          child: _isLoggingIn
+                            ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                              color: Colors.white, // kolor spinnera biały
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text('Log In'),
                       ),
                     ),
 

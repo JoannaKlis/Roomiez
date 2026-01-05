@@ -120,40 +120,44 @@ class FirestoreService {
   // wyjście użytkownika z grupy
   Future<void> userExitsAGroup() async {
     try {
-    final String userId = FirebaseAuth.instance.currentUser!.uid;
-    final groupId = await getCurrentUserGroupId();
+    final String userId = FirebaseAuth.instance.currentUser!.uid; //pobranie id aktualnie zalogowanego użytkownika
+    final groupId = await getCurrentUserGroupId(); //pobranie id grupy użytkownika
     final batch = _firestore.batch();
-    final currentUserRole = await getCurrentUserRole();
-    final usersInGroup = await _firestore
+    final currentUserRole = await getCurrentUserRole(); //pobranie roli użytkownika
+    final usersInGroup = await _firestore //zapytanie zwracające wszystkich użytkowników należących do grupy 
         .collection('users')
         .where('groupId', isEqualTo: groupId)
         .get();
+     //jeśli użytkowink opuszczający grupę był jedynym jej członkiem to grupa jest usuwana    
     if (usersInGroup.size == 1) {
       batch.delete(_firestore.collection('groups').doc(groupId));
 
       // usuń wszystkie powiązane dokumenty
       final collectionsToDelete = ['announcements', 'tasks', 'shopping_items', 'expenses'];
-      for (var col in collectionsToDelete) {
-        final snapshot = await _firestore.collection(col)
+      for (var col in collectionsToDelete) { //dla każdej w wymienionych powyżej kolekcji
+        final snapshot = await _firestore.collection(col) //znajdź wszystkie dokumenty, które dotyczą usuwanej grupy i zapisz je w snapshot
         .where('groupId', isEqualTo: groupId)
         .get();
-        for (var doc in snapshot.docs) {
+        for (var doc in snapshot.docs) { //usuń każdy dokument ze snapshot
         batch.delete(doc.reference);
         }
       }
-    } else if(currentUserRole == UserRole.apartmentManager){
-        final otherUsers = usersInGroup.docs
+    } 
+    // jeśli była więcej niż jedna osoba w grupie i odchodzi z niej apartmentManager, należy przypisać te rolę innemu, losowemu użytkownikowi
+    else if(currentUserRole == UserRole.apartmentManager){ 
+        final otherUsers = usersInGroup.docs // zapytanie które przypisuje wszystkich członków grupy, poza usuwanym, do listy otherUsers
           .where((doc) => doc.id != userId)
           .toList();
-      if(otherUsers.isNotEmpty){
-        otherUsers.shuffle();
-        final newManagerId = otherUsers.first.id;
+      if(otherUsers.isNotEmpty){ //dodatkowe zabezpieczenie
+        otherUsers.shuffle(); //przetasowanie kolejności uzytkowników z listy
+        final newManagerId = otherUsers.first.id; //zapisanie id nowego managera
         batch.update(
-          _firestore.collection('users').doc(newManagerId),
+          _firestore.collection('users').doc(newManagerId), //nadanie nowej roli managera wylosowanej osobie
           {'role': UserRole.apartmentManager},
         );
       }
     }
+    //usunięty użytkownik otrzymuje domyślne id i rolę dla nieprzynależącego nigdzie użytkownika 
     batch.update(
       _firestore.collection('users').doc(userId),
       {
@@ -161,7 +165,9 @@ class FirestoreService {
         'role': UserRole.user,
       },
     );
-    await batch.commit();
+    await batch.commit(); //wszystkie operacje są zatwierdzane i wykonywane w tym momencie 
+    //batch chroni przed wykonaniem tylko części z koniecznych operacji (przypadki brzegowe)
+    //np. nieoczekiwane zamknięcie aplikacji podczas przyznawania roli, czyli przed usunięciem użytkownika -> dwóch managerów w grupie
     } catch (e) {
       debugPrint("userExitsAGroup error: $e");
       return;

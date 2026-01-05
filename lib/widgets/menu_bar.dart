@@ -50,7 +50,7 @@ class CustomDrawer extends StatelessWidget {
   }
 
 void _showExitGroupDialog(BuildContext context) {
-  bool isProcessing = false; // zmienna do blokady przycisku
+  bool isProcessing = false; // zmienna do blokady przycisku 'Yes'
   final parentContext = context;
 
   showDialog(
@@ -59,6 +59,7 @@ void _showExitGroupDialog(BuildContext context) {
     builder: (dialogContext) {
       return StatefulBuilder(
         builder: (sbContext, setState) {
+          //styl okienka (zaokrąglenie krawędzi, rozmieszczenie elementów i tekstu)
           return AlertDialog(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -69,27 +70,27 @@ void _showExitGroupDialog(BuildContext context) {
                 const Text('Exit group?'),
                 IconButton(
                   icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  onPressed: () => Navigator.of(dialogContext).pop(), //zamknięcie okna po kliknięciu X
                 ),
               ],
             ),
-            content: const Text('Are you sure you want to exit the group?'),
+            content: const Text('Are you sure you want to exit the group?'), //treść komunikatu
             actions: [
               TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
+                onPressed: () => Navigator.of(dialogContext).pop(), //zamknięcie okna po kliknięciu anuluj
                 child: const Text('Cancel'),
               ),
               TextButton(
-              onPressed: isProcessing
-                  ? null
+              onPressed: isProcessing // konstrukcja zabezpieczająca przed wielokrotnym wykonaniem wyjścia z grupy w jednej chwili 
+                  ? null //  przypadek brzegowy, kliknięcie 'tak' szybko kilka razy
                   : () async {
                       setState(() => isProcessing = true);
                         try {
-                          await _firestoreService.userExitsAGroup();
-                          if (parentContext.mounted) {
+                          await _firestoreService.userExitsAGroup(); //funkcja usuwająca użytkownika z bazy
+                          if (parentContext.mounted) { // przeniesienie na ekran dołączania/tworzenia grupy jeśli widget widoczny
                             Navigator.of(parentContext).pushAndRemoveUntil(
                               MaterialPageRoute(builder: (_) => const DashboardScreen()),
-                              (route) => false,
+                              (route) => false, //usunięcie poprzednich ekranów ze stosu. Po wyjściu z grupy nie powinno być możliwości powrotu
                             );
                           }
                         } catch (e) {

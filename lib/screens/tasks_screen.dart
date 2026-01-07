@@ -831,7 +831,7 @@ class _TaskCompletionTimerState extends State<_TaskCompletionTimer> {
     }
 
     return Text(
-      'Zniknie za: $timeText',
+      'Disappears in: $timeText',
       style: TextStyle(
         color: textColor,
         fontSize: 11,

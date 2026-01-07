@@ -589,7 +589,7 @@ class _ShoppingItemTimerState extends State<_ShoppingItemTimer> {
     }
 
     return Text(
-      'Zniknie za: $timeText',
+      'Disappears in: $timeText',
       style: TextStyle(
         color: textColor,
         fontSize: 10,

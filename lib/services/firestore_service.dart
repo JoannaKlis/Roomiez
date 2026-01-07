@@ -261,7 +261,7 @@ class FirestoreService {
       }
 
       // C. Zapisz wszystko w bazie
-      // Nowy wydatek
+      // Nowy wydatek (upewnij się, że pole isSettled jest zapisane)
       transaction.set(expenseRef, expense.toMap());
       // Zaktualizowane salda w grupie
       transaction.update(groupRef, {'balances': balances});
@@ -313,18 +313,78 @@ class FirestoreService {
     debugPrint("MIGRATION SUCCESS: Balances updated!");
   }
 
+  // Ensure every expense document has the 'isSettled' field (default false)
+  Future<void> ensureExpensesHaveIsSettled() async {
+    final groupId = await getCurrentUserGroupId();
+    final expensesSnapshot = await _firestore
+        .collection('expenses')
+        .where('groupId', isEqualTo: groupId)
+        .get();
+
+    final WriteBatch batch = _firestore.batch();
+    for (var doc in expensesSnapshot.docs) {
+      final data = doc.data();
+      if (!data.containsKey('isSettled')) {
+        batch.update(doc.reference, {'isSettled': false});
+      }
+    }
+
+    if (batch != null) {
+      await batch.commit();
+    }
+  }
+
+  // Delete all expenses for the current group and reset balances
+  Future<void> deleteAllExpenses() async {
+    final groupId = await getCurrentUserGroupId();
+    
+    // Delete all expenses
+    final expensesSnapshot = await _firestore
+        .collection('expenses')
+        .where('groupId', isEqualTo: groupId)
+        .get();
+
+    final WriteBatch batch = _firestore.batch();
+    for (var doc in expensesSnapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+
+    // Reset balances in group to zero
+    final groupRef = _firestore.collection('groups').doc(groupId);
+    final groupSnapshot = await groupRef.get();
+    if (groupSnapshot.exists) {
+      final users = await getCurrentApartmentUsers(groupId);
+      Map<String, double> zeroBalances = {};
+      for (var user in users) {
+        zeroBalances[user['id']!] = 0.0;
+      }
+      await groupRef.update({'balances': zeroBalances});
+    }
+
+    debugPrint("ALL EXPENSES DELETED AND BALANCES RESET!");
+  }
+
   // pobieranie wydatków dla domyślnej grupy
-  Stream<List<ExpenseHistoryItem>> getExpenses() {
+  // Filtrowanie po isSettled robimy po stronie klienta, aby uniknąć konieczności tworzenia indeksów w Firestore
+  Stream<List<ExpenseHistoryItem>> getExpenses({bool? isSettled}) {
     return Stream.fromFuture(getCurrentUserGroupId()).asyncExpand((groupId) {
-      return _firestore
+      var query = _firestore
           .collection('expenses')
           .where('groupId', isEqualTo: groupId)
-          .orderBy('date', descending: true)
-          .snapshots()
-          .map((snapshot) {
-        return snapshot.docs
+          .orderBy('date', descending: true);
+
+      return query.snapshots().map((snapshot) {
+        var items = snapshot.docs
             .map((doc) => ExpenseHistoryItem.fromMap(doc.data(), doc.id))
             .toList();
+
+        // Filtrowanie po stronie klienta
+        if (isSettled != null) {
+          items = items.where((item) => item.isSettled == isSettled).toList();
+        }
+
+        return items;
       });
     });
   }
@@ -542,50 +602,52 @@ class FirestoreService {
         .map((s) => s.docs.map((d) => ExpenseHistoryItem.fromMap(d.data(), d.id)).toList());
   }
 
-  // --- ROZLICZENIA (SETTLEMENTS - POCZEKALNIA) ---
+  // --- SETTLEMENTS ---
 
-  // 1. Wyślij prośbę o rozliczenie (User A klika "Settle Up")
+  // 1. Send settlement request (User A clicks "Settle Up")
   Future<void> requestSettlement(String toUserId, double amount) async {
     final fromUserId = FirebaseAuth.instance.currentUser?.uid;
     final groupId = await getCurrentUserGroupId();
     
     await _firestore.collection('settlements').add({
-      'fromUserId': fromUserId, // Kto oddaje
-      'toUserId': toUserId,     // Kto ma potwierdzić
+      'fromUserId': fromUserId, // Who is paying
+      'toUserId': toUserId,     // Who should confirm
       'amount': amount,
       'groupId': groupId,
-      'status': 'pending',      // Oczekuje
+      'status': 'pending',      // Pending confirmation
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
 
-  // 2. Potwierdź otrzymanie pieniędzy (User B klika "Confirm")
+  // 2. Confirm payment received (User B clicks "Confirm")
   Future<void> confirmSettlement(String settlementId, String fromUserId, double amount) async {
     final groupId = await getCurrentUserGroupId();
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
 
-    // A. Dodaj oficjalny wydatek "Zwrot", który wyzeruje dług w algorytmie
+    // A. Add settlement record that will zero out the debt in the algorithm
+    // Mark as isSettled: true to appear in Archive
     final repayment = ExpenseHistoryItem(
       id: '', 
-      description: 'Repayment (Zwrot)', 
-      payerId: fromUserId,     // Płatnikiem jest ten, kto oddawał (User A)
+      description: 'Settlement', 
+      payerId: fromUserId,     // Payment comes from the payer (User A)
       amount: amount, 
       date: DateTime.now(), 
-      participantsIds: [currentUserId!], // Koszt ponosi tylko ten, kto odebrał (User B)
+      participantsIds: [currentUserId!], // Cost applied to recipient (User B)
       groupId: groupId,
+      isSettled: true,  // Mark as settled
     );
     await addExpense(repayment);
 
-    // B. Usuń prośbę z poczekalni
+    // B. Remove the settlement request from pending
     await _firestore.collection('settlements').doc(settlementId).delete();
   }
 
-  // 3. Odrzuć (User B klika "Nie dostałem")
+  // 3. Deny settlement request (User B clicks "Deny")
   Future<void> denySettlement(String settlementId) async {
     await _firestore.collection('settlements').doc(settlementId).delete();
   }
 
-  // 4. Pobierz listę oczekujących rozliczeń
+  // 4. Get list of pending settlements
   Stream<List<Map<String, dynamic>>> getPendingSettlementsStream() {
     return Stream.fromFuture(getCurrentUserGroupId()).asyncExpand((groupId) {
       return _firestore.collection('settlements')

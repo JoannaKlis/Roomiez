@@ -233,6 +233,54 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     });
   }
 
+  // Dialog potwierdzenia przed usunięciem wszystkich wydatków
+  Future<void> _showDeleteAllExpensesDialog() async {
+    final bool? shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete All Expenses?'),
+        content: const Text(
+          'This will permanently delete all expenses for this group and reset all balances to zero. This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete All'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDelete == true) {
+      try {
+        await _firestoreService.deleteAllExpenses();
+        if (mounted) {
+          setState(() {});
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('All expenses deleted successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error deleting expenses: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
   String _getSubtext(ExpenseHistoryItem item) {
     final payer = _roomies.firstWhere((user) => user['id'] == item.payerId,
         orElse: () => {'name': 'Unknown User'});
@@ -592,7 +640,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     );
   }
 
-  /// Przełączniki "All" / "Owed" / "Lent" - Styl pastylek
+  /// Przełączniki "Current" / "Archived" / "Owed" / "Lent" - Styl pastylek
   Widget _buildToggleButtons() {
     return Container(
       padding: const EdgeInsets.all(4),
@@ -602,9 +650,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       ),
       child: Row(
         children: [
-          Expanded(child: _buildToggleButton('All', 0)),
-          Expanded(child: _buildToggleButton('Owed', 1)),
-          Expanded(child: _buildToggleButton('Lent', 2)),
+          Expanded(child: _buildToggleButton('Current', 0)),
+          Expanded(child: _buildToggleButton('Archived', 1)),
+          Expanded(child: _buildToggleButton('Owed', 2)),
+          Expanded(child: _buildToggleButton('Lent', 3)),
         ],
       ),
     );
@@ -684,6 +733,21 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     },
                     child: const Text("Optimize & Fix Balances"),
                   ),
+                  const SizedBox(height: 10),
+                  ElevatedButton(
+                    onPressed: () async {
+                      await _firestoreService.ensureExpensesHaveIsSettled();
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Migration completed: isSettled added'), backgroundColor: Colors.green));
+                      setState(() {});
+                    },
+                    child: const Text("Ensure 'isSettled' Field"),
+                  ),
+                  const SizedBox(height: 10),
+                  ElevatedButton(
+                    onPressed: _showDeleteAllExpensesDialog,
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                    child: const Text("Delete All Expenses"),
+                  ),
                 ],
               ),
             ),
@@ -709,7 +773,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
             // ... Reszta kodu (zakładki Owed/Lent) bez zmian ...
             // ... (Ale uwaga: Zakładka "ALL" (historia) musi teraz mieć WŁASNY StreamBuilder) ...
             // --- ZAKŁADKA "OWED" (Komu ja wiszę) ---
-            if (_selectedToggleIndex == 1) {
+            if (_selectedToggleIndex == 2) {
               final myDebts = debts.where((d) => d.fromUser == _currentUserId).toList();
               if (myDebts.isEmpty) return const SliverToBoxAdapter(child: Center(child: Padding(padding: EdgeInsets.only(top:20), child: Text("All settled! 🎉"))));
               
@@ -725,7 +789,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
             }
 
             // --- ZAKŁADKA "LENT" (Kto mi wisi) ---
-            if (_selectedToggleIndex == 2) {
+            if (_selectedToggleIndex == 3) {
               final oweMe = debts.where((d) => d.toUser == _currentUserId).toList();
               if (oweMe.isEmpty) return const SliverToBoxAdapter(child: Center(child: Padding(padding: EdgeInsets.only(top:20), child: Text("No one owes you."))));
 
@@ -743,29 +807,31 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               }, childCount: oweMe.length));
             }
 
-            // --- ZAKŁADKA "ALL" (Historia) ---
-            // --- ZAKŁADKA "ALL" (Historia) ---
-            // --- ZAKŁADKA "ALL" (Historia) ---
-            // Musimy pobrać historię osobnym zapytaniem, bo główny stream patrzy teraz na Grupę (Salda)
-            return StreamBuilder<List<ExpenseHistoryItem>>(
-              stream: _firestoreService.getExpenses(), 
-              builder: (context, snapshotHistory) {
-                 // Jeśli się ładuje lub nie ma danych
-                 if (!snapshotHistory.hasData) {
-                   return const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()));
-                 }
-                 
-                 final history = snapshotHistory.data!;
-                 
-                 if (history.isEmpty) {
-                   return const SliverToBoxAdapter(child: Center(child: Text("No expenses yet.")));
-                 }
+            // --- ZAKŁADKI "CURRENT" / "ARCHIVED" (Historia rozliczeń) ---
+            // Current: nierozliczone (isSettled == false)
+            // Archived: rozliczone (isSettled == true)
+            if (_selectedToggleIndex == 0 || _selectedToggleIndex == 1) {
+              final bool settledFilter = _selectedToggleIndex == 1;
+              return StreamBuilder<List<ExpenseHistoryItem>>(
+                stream: _firestoreService.getExpenses(isSettled: settledFilter),
+                builder: (context, snapshotHistory) {
+                  if (!snapshotHistory.hasData) {
+                    return const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()));
+                  }
 
-                 return SliverList(delegate: SliverChildBuilderDelegate((context, index) {
+                  final history = snapshotHistory.data!;
+                  if (history.isEmpty) {
+                    return const SliverToBoxAdapter(child: Center(child: Text("No expenses yet.")));
+                  }
+
+                  return SliverList(delegate: SliverChildBuilderDelegate((context, index) {
                     return Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: _buildExpenseListItem(history[index]));
-                 }, childCount: history.length));
-              }
-            );
+                  }, childCount: history.length));
+                }
+              );
+            }
+            // Fallback: ensure we always return a Widget from this builder
+            return const SliverToBoxAdapter(child: Center(child: Text("No view selected.")));
           }
         );
       },
@@ -796,7 +862,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     Widget? actionButton;
 
     // --- LOGIKA PRZYCISKÓW ---
-    if (_selectedToggleIndex == 1) {
+    if (_selectedToggleIndex == 2) {
       // Owed
       showActions = true;
       if (isMarkedAsPaid) {
@@ -809,7 +875,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           });
         });
       }
-    } else if (_selectedToggleIndex == 2) {
+    } else if (_selectedToggleIndex == 3) {
       // Lent
       showActions = true;
       if (isConfirmed) {

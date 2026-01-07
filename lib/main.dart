@@ -8,12 +8,26 @@ import 'screens/welcome_screen.dart';
 import 'screens/expenses_screen.dart';
 import 'screens/tasks_screen.dart';
 import 'screens/profile_edit_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'services/firestore_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Run migration to ensure existing expense docs have 'isSettled' field
+  try {
+    // Only run if user is logged in
+    if (FirebaseAuth.instance.currentUser != null) {
+      await FirestoreService().ensureExpensesHaveIsSettled();
+    }
+  } catch (e) {
+    // ignore errors at startup migration
+    debugPrint('Startup migration error: $e');
+  }
+
   runApp(const MyApp());
 }
 

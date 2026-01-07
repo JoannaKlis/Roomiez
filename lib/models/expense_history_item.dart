@@ -9,6 +9,7 @@ class ExpenseHistoryItem {
   final DateTime date;
   final List<String> participantsIds; // ID uczestników (również płatnika)
   final String groupId;  // ID grupy, do której należy wydatek
+  final bool isSettled; // czy wydatek jest rozliczony (archiwalny)
 
   ExpenseHistoryItem({
     required this.id,
@@ -18,6 +19,7 @@ class ExpenseHistoryItem {
     required this.date,
     required this.participantsIds,
     required this.groupId,
+    this.isSettled = false,
   });
 
   // metoda do tworzenia obiektu z firestore 
@@ -31,6 +33,7 @@ class ExpenseHistoryItem {
       date: (data['date'] as Timestamp).toDate(),
       participantsIds: List<String>.from(data['participantsIds'] as List),
       groupId: data['groupId'] as String,
+      isSettled: data.containsKey('isSettled') ? (data['isSettled'] as bool) : false,
     );
   }
 
@@ -43,6 +46,7 @@ class ExpenseHistoryItem {
       'date': date,
       'participantsIds': participantsIds,
       'groupId': groupId,
+      'isSettled': isSettled,
     };
   }
 }

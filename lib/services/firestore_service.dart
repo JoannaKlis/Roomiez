@@ -231,6 +231,11 @@ class FirestoreService {
     await _firestore.collection('tasks').doc(taskId).update(updateData);
   }
 
+  // !!! NOWE: USUWANIE ZADANIA
+  Future<void> deleteTask(String taskId) async {
+    await _firestore.collection('tasks').doc(taskId).delete();
+  }
+
   // dodawanie nowego wydatku
   // 1. Zmodyfikowane dodawanie (Transakcja)
   Future<void> addExpense(ExpenseHistoryItem expense) async {

@@ -224,138 +224,139 @@ class _TasksScreenState extends State<TasksScreen> {
   // --- BUDOWANIE INTERFEJSU (UI - Clean Style) ---
   @override
   Widget build(BuildContext context) {
-  return PopScope(
-    canPop: false, // BLOKUJEMY normalne cofanie
-    onPopInvoked: (didPop) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const HomeScreen()), 
-        (route) => false, // USUWA CAŁY STACK
-      );
-    },
-    child: Scaffold(
-      backgroundColor: backgroundColor,
-      body: CustomScrollView(
-        slivers: [
-          // AppBar
-          SliverAppBar(
-            backgroundColor: backgroundColor,
-            surfaceTintColor: Colors.transparent,
-            elevation: 0,
-            floating: true,
-            pinned: true,
-            leading: Builder(
-              builder: (context) => IconButton(
-                icon:
-                    const Icon(Icons.menu_rounded, size: 28, color: textColor),
-                onPressed: () {
-                  Scaffold.of(context).openDrawer();
-                },
-              ),
-            ),
-            title: Column(
-              children: [
-                const Text(
-                  'ROOMIES',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    color: primaryColor,
-                    fontFamily: 'StackSansNotch',
-                    letterSpacing: 0.5,
+    return PopScope(
+        canPop: false, // BLOKUJEMY normalne cofanie
+        onPopInvoked: (didPop) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const HomeScreen()),
+            (route) => false, // USUWA CAŁY STACK
+          );
+        },
+        child: Scaffold(
+          backgroundColor: backgroundColor,
+          body: CustomScrollView(
+            slivers: [
+              // AppBar
+              SliverAppBar(
+                backgroundColor: backgroundColor,
+                surfaceTintColor: Colors.transparent,
+                elevation: 0,
+                floating: true,
+                pinned: true,
+                leading: Builder(
+                  builder: (context) => IconButton(
+                    icon: const Icon(Icons.menu_rounded,
+                        size: 28, color: textColor),
+                    onPressed: () {
+                      Scaffold.of(context).openDrawer();
+                    },
                   ),
                 ),
-                Text(
-                  _groupName.isNotEmpty ? _groupName.toUpperCase() : '',
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: lightTextColor,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: appFontFamily,
-                    letterSpacing: 1.0,
-                  ),
-                ),
-              ],
-            ),
-            centerTitle: true,
-            actions: [
-              IconButton(
-                icon: const Icon(
-                  Icons.notifications_none_rounded,
-                  size: 28,
-                  color: textColor,
-                ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const AnnouncementsScreen(),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-
-          // Reszta zawartości
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate(
-                [
-                  const Center(
-                    child: Text(
-                      'Tasks',
+                title: Column(
+                  children: [
+                    const Text(
+                      'ROOMIES',
                       style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w800,
-                        color: textColor,
-                        fontFamily: appFontFamily,
-                        letterSpacing: -1.0,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        color: primaryColor,
+                        fontFamily: 'StackSansNotch',
+                        letterSpacing: 0.5,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Karta podsumowania (JASNA WERSJA)
-                  _buildTaskSummaryCard(),
-                  const SizedBox(height: 20),
-
-                  // Formularz (Animowany)
-                  AnimatedSize(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeOutCubic,
-                    child: Container(
-                      child: _isNewTaskFormVisible
-                          ? Column(
-                              children: [
-                                _buildNewTaskForm(),
-                                const SizedBox(height: 20),
-                              ],
-                            )
-                          : const SizedBox.shrink(),
+                    Text(
+                      _groupName.isNotEmpty ? _groupName.toUpperCase() : '',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: lightTextColor,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: appFontFamily,
+                        letterSpacing: 1.0,
+                      ),
                     ),
+                  ],
+                ),
+                centerTitle: true,
+                actions: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.notifications_none_rounded,
+                      size: 28,
+                      color: textColor,
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AnnouncementsScreen(),
+                        ),
+                      );
+                    },
                   ),
-
-                  // Przełączniki
-                  _buildToggleButtons(),
-                  const SizedBox(height: 20),
                 ],
               ),
-            ),
+
+              // Reszta zawartości
+              SliverPadding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate(
+                    [
+                      const Center(
+                        child: Text(
+                          'Tasks',
+                          style: TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.w800,
+                            color: textColor,
+                            fontFamily: appFontFamily,
+                            letterSpacing: -1.0,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Karta podsumowania (JASNA WERSJA)
+                      _buildTaskSummaryCard(),
+                      const SizedBox(height: 20),
+
+                      // Formularz (Animowany)
+                      AnimatedSize(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeOutCubic,
+                        child: Container(
+                          child: _isNewTaskFormVisible
+                              ? Column(
+                                  children: [
+                                    _buildNewTaskForm(),
+                                    const SizedBox(height: 20),
+                                  ],
+                                )
+                              : const SizedBox.shrink(),
+                        ),
+                      ),
+
+                      // Przełączniki
+                      _buildToggleButtons(),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Lista zadań
+              _buildTaskList(),
+
+              const SliverToBoxAdapter(child: SizedBox(height: 40)),
+            ],
           ),
-
-          // Lista zadań
-          _buildTaskList(),
-
-          const SliverToBoxAdapter(child: SizedBox(height: 40)),
-        ],
-      ),
-      drawer: mb.CustomDrawer(
-        roomName: _groupName, // lub pobrana nazwa
-        groupId: _userGroupId, // lub pobrane ID
-        currentRoute: 'tasks', // <--- TO SPRAWIA ŻE ŚWIECI NA ZIELONO
-      ),
-    ));
+          drawer: mb.CustomDrawer(
+            roomName: _groupName, // lub pobrana nazwa
+            groupId: _userGroupId, // lub pobrane ID
+            currentRoute: 'tasks', // <--- TO SPRAWIA ŻE ŚWIECI NA ZIELONO
+          ),
+        ));
   }
 
   // --- WIDGETY POMOCNICZE (Clean UI) ---
@@ -640,7 +641,7 @@ class _TasksScreenState extends State<TasksScreen> {
         }
 
         final allTasks = snapshot.data!;
-        
+
         // Filtrujemy zadania - chowamy zrobione starsze niż 1h
         final now = DateTime.now();
         final filteredTasks = allTasks.where((task) {
@@ -652,7 +653,7 @@ class _TasksScreenState extends State<TasksScreen> {
               return false; // Ukrywamy to zadanie
             }
           }
-          
+
           // Filtrujemy po przypisaniu (jeśli wybrany "My tasks")
           if (_selectedToggleIndex == 1) {
             return task.assignedToId == _currentUserId;
@@ -664,9 +665,28 @@ class _TasksScreenState extends State<TasksScreen> {
           delegate: SliverChildBuilderDelegate(
             (context, index) {
               final task = filteredTasks[index];
+              // --- DODANO DISMISSIBLE (Przesuń aby usunąć) ---
               return Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                child: _buildTaskListItem(task),
+                child: Dismissible(
+                  key: Key(task.id),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.redAccent,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Icon(Icons.delete_outline,
+                        color: Colors.white, size: 28),
+                  ),
+                  onDismissed: (_) {
+                    _firestoreService.deleteTask(task.id);
+                  },
+                  child: _buildTaskListItem(task),
+                ),
               );
             },
             childCount: filteredTasks.length,

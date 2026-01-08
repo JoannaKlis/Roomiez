@@ -238,6 +238,11 @@ class FirestoreService {
   // dodawanie nowego wydatku
   // 1. Zmodyfikowane dodawanie (Transakcja)
   Future<void> addExpense(ExpenseHistoryItem expense) async {
+    // Validate expense amount limit
+    if (expense.amount > 100000) {
+      throw Exception('Expense amount cannot exceed 100,000 PLN.');
+    }
+
     final expenseRef = _firestore.collection('expenses').doc();
     final groupRef = _firestore.collection('groups').doc(expense.groupId);
 

@@ -246,13 +246,16 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     if (_descriptionController.text.isEmpty ||
         amount == null ||
         amount <= 0 ||
+        amount > 100000 ||
         participantsIds.isEmpty ||
         _userGroupId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
             content: Text(_userGroupId.isEmpty
                 ? 'Error: You must belong to a group to add expenses.'
-                : 'Please fill in details and select participants.'),
+                : amount != null && amount > 100000
+                    ? 'Expense amount cannot exceed 100,000 PLN.'
+                    : 'Please fill in details and select participants.'),
             backgroundColor: Colors.red),
       );
       return;

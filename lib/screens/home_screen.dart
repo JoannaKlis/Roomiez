@@ -15,14 +15,7 @@ import '../widgets/menu_bar.dart';
 import '../models/expense_history_item.dart'; 
 
 class HomeScreen extends StatefulWidget {
-  final String roomName;
-  final String groupId;
-
-  const HomeScreen({
-    super.key,
-    required this.roomName,
-    required this.groupId,
-  });
+    const HomeScreen({super.key,});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -32,11 +25,37 @@ class _HomeScreenState extends State<HomeScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   String _userName = 'Roomie'; // Domyślna wartość podczas ładowania
 
-  @override
-  void initState() {
-    super.initState();
-    _loadUserName();
+  String _groupId = '';
+  String _groupName = '';
+  bool _isLoadingGroup = true;
+
+@override
+void initState() {
+  super.initState();
+  _loadUserName();
+  _loadGroup();
+}
+
+Future<void> _loadGroup() async {
+  try {
+    final gid = await _firestoreService.getCurrentUserGroupId();
+    final name = await _firestoreService.getGroupName(gid);
+
+    if (!mounted) return;
+
+    setState(() {
+      _groupId = gid;
+      _groupName = name;
+      _isLoadingGroup = false;
+    });
+  } catch (e) {
+    if (!mounted) return;
+    setState(() {
+      _isLoadingGroup = false;
+    });
   }
+}
+
 
   // Funkcja pobierająca imię z Firebase
   Future<void> _loadUserName() async {
@@ -50,6 +69,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+      if (_isLoadingGroup || _groupId.isEmpty) {
+    return const Scaffold(
+      body: Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+  }
     return Scaffold(
       backgroundColor: backgroundColor, // Czysta biel
 
@@ -78,9 +104,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 fontSize: 20,
               ),
             ),
-            if (widget.roomName.isNotEmpty)
+            if (_groupName.isNotEmpty)
               Text(
-                widget.roomName.toUpperCase(),
+                _groupName.toUpperCase(),
                 style: const TextStyle(
                   color: lightTextColor,
                   fontFamily: appFontFamily,
@@ -197,7 +223,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const _SectionHeader(title: 'Recent expenses'),
               const SizedBox(height: 12),
               _ExpensesCard(
-                groupId: widget.groupId,
+                groupId: _groupId,
                 onGoToExpenses: () {
                   Navigator.push(
                     context,
@@ -228,7 +254,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       // Drawer z poprawnymi danymi
-      drawer: CustomDrawer(roomName: widget.roomName, groupId: widget.groupId),
+      drawer: CustomDrawer(roomName: _groupName, groupId: _groupId),
     );
   }
 }

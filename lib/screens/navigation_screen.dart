@@ -172,10 +172,7 @@ class NavigationMenuScreen extends StatelessWidget {
                         Navigator.pushAndRemoveUntil(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => HomeScreen(
-                              groupId: groupId,
-                              roomName: roomName,
-                            ),
+                            builder: (context) => const HomeScreen(),
                           ),
                           (route) => false, // Czyści historię wstecz
                         );

@@ -224,10 +224,7 @@ void _showExitGroupDialog(BuildContext context) {
                         Navigator.pushAndRemoveUntil(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => HomeScreen(
-                              groupId: groupId,
-                              roomName: roomName,
-                            ),
+                            builder: (context) => const HomeScreen(),
                           ),
                           (route) => false,
                         );

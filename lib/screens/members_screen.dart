@@ -5,6 +5,7 @@ import '../services/firestore_service.dart';
 import '../constants.dart';
 import '../widgets/menu_bar.dart';
 import 'announcements_screen.dart';
+import 'home_screen.dart';
 
 class MembersScreen extends StatefulWidget {
   const MembersScreen({super.key});
@@ -75,7 +76,15 @@ class _MembersScreenState extends State<MembersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+  return PopScope(
+    canPop: false, // BLOKUJEMY normalne cofanie
+    onPopInvoked: (didPop) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const HomeScreen()), 
+        (route) => false, // USUWA CAŁY STACK
+      );
+    },
+    child: Scaffold(
       backgroundColor: backgroundColor,
 
       // --- APP BAR (Zaktualizowany styl) ---
@@ -300,6 +309,6 @@ class _MembersScreenState extends State<MembersScreen> {
                     );
                   },
                 ),
-    );
+  ));
   }
 }

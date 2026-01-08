@@ -9,6 +9,7 @@ import '../widgets/menu_bar.dart' as mb;
 import 'announcements_screen.dart';
 import '../utils/split_bill_logic.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'home_screen.dart';
 
 class ExpensesScreen extends StatefulWidget {
   const ExpensesScreen({super.key});
@@ -303,7 +304,15 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   // --- BUDOWANIE INTERFEJSU (UI) ---
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+  return PopScope(
+    canPop: false, // BLOKUJEMY normalne cofanie
+    onPopInvoked: (didPop) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => HomeScreen()), 
+        (route) => false, // USUWA CAŁY STACK
+      );
+    },
+    child: Scaffold(
       backgroundColor: backgroundColor,
       body: CustomScrollView(
         slivers: [
@@ -427,6 +436,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         groupId: _userGroupId,
         currentRoute: 'expenses',
       ),
+    )
     );
   }
 

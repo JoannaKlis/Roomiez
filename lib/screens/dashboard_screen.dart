@@ -47,11 +47,7 @@ void _signOut() async {
       showSnackBarColor(context, "Success", Colors.green); //informacja o sukcesie tworzenia grupy
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
-          builder: (_) => HomeScreen( //do zbudowania ekranu głównego grupy potrzebne są nazwa i id grupy
-            roomName: _nameController.text.trim(), //controller przechowuje dokladnie to, co wpisane w polu tekstowym,
-            //.trim() usuwa spacje z początku i końca tekstu
-            groupId: groupId,
-          ),
+          builder: (_) => const HomeScreen(),
         ),
         (_) => false, //usunięcie wszelkich poprzednich ekranów ze stosu - nie powinno być możliwości 'cofnięcia się' do ekranu logowania
         //(w tym celu trzeba się wylogować)
@@ -84,10 +80,7 @@ void _signOut() async {
         // - jedynym sposobem wyjścia z grupy / wylogowania się powinny być przyciski w menu_bar
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
-            builder: (_) => HomeScreen(
-              roomName: realGroupName,
-              groupId: groupIdInput,
-            ),
+            builder: (_) => const HomeScreen(),
           ),
           (_) => false,
         );

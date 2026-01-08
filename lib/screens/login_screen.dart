@@ -100,7 +100,7 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => groupId != "default_group"
-          ? HomeScreen(roomName: roomName, groupId: groupId,)
+          ? const HomeScreen()
           : const DashboardScreen(),),
           //jeśli już ma groupId (nie default_group) to nie pokazuj ekranu z dołączeniem/tworzeniem miejsca
         );

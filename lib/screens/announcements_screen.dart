@@ -13,6 +13,7 @@ import 'package:firebase_storage/firebase_storage.dart' show SettableMetadata;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:typed_data';
 import '../widgets/menu_bar.dart' as mb; // Import drawera
+import 'home_screen.dart';
 
 class AnnouncementsScreen extends StatefulWidget {
   static const String id = 'announcements_screen';
@@ -699,7 +700,15 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+  return PopScope(
+    canPop: false, // BLOKUJEMY normalne cofanie
+    onPopInvoked: (didPop) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const HomeScreen()), 
+        (route) => false, // USUWA CAŁY STACK
+      );
+    },
+    child: Scaffold(
       backgroundColor: backgroundColor,
       appBar: AppBar(
         backgroundColor: backgroundColor,
@@ -785,6 +794,6 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
         ),
       ),
       drawer: mb.CustomDrawer(roomName: _groupName, groupId: _userGroupId, currentRoute: "announcements",),
-    );
+    ));
   }
 }

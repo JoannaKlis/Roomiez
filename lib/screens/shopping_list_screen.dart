@@ -8,6 +8,7 @@ import '../widgets/menu_bar.dart';
 import 'announcements_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // Potrzebne do ID usera
 import '../models/expense_history_item.dart';      // Potrzebne do stworzenia wydatku
+import 'home_screen.dart';
 
 class ShoppingScreen extends StatefulWidget {
   const ShoppingScreen({super.key});
@@ -167,7 +168,15 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+  return PopScope(
+    canPop: false, // BLOKUJEMY normalne cofanie
+    onPopInvoked: (didPop) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const HomeScreen()), 
+        (route) => false, // USUWA CAŁY STACK
+      );
+    },
+    child: Scaffold(
       backgroundColor: backgroundColor,
 
       // --- APP BAR ---
@@ -533,7 +542,7 @@ class _ShoppingScreenState extends State<ShoppingScreen> {
           ),
         ],
       ),
-    );
+    ));
   }
 }
 /// Widget stateful do pokazywania countdown'u dla kupionego przedmiotu

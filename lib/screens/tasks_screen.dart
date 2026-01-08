@@ -9,6 +9,7 @@ import '../services/firestore_service.dart';
 import 'navigation_screen.dart';
 import '../widgets/menu_bar.dart' as mb;
 import 'announcements_screen.dart';
+import 'home_screen.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -223,7 +224,15 @@ class _TasksScreenState extends State<TasksScreen> {
   // --- BUDOWANIE INTERFEJSU (UI - Clean Style) ---
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+  return PopScope(
+    canPop: false, // BLOKUJEMY normalne cofanie
+    onPopInvoked: (didPop) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const HomeScreen()), 
+        (route) => false, // USUWA CAŁY STACK
+      );
+    },
+    child: Scaffold(
       backgroundColor: backgroundColor,
       body: CustomScrollView(
         slivers: [
@@ -346,7 +355,7 @@ class _TasksScreenState extends State<TasksScreen> {
         groupId: _userGroupId, // lub pobrane ID
         currentRoute: 'tasks', // <--- TO SPRAWIA ŻE ŚWIECI NA ZIELONO
       ),
-    );
+    ));
   }
 
   // --- WIDGETY POMOCNICZE (Clean UI) ---

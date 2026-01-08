@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/firestore_service.dart';
 import '../services/auth_service.dart';
 import '../constants.dart';
+import 'home_screen.dart';
 
 class ProfileEditScreen extends StatefulWidget {
   static const String id = 'profile_edit_screen';
@@ -17,7 +18,10 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
-  
+
+  String _groupId = '';
+  String _groupName = ''; 
+
   bool _isLoading = true;
   final FirestoreService _firestoreService = FirestoreService();
 
@@ -30,6 +34,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   // Metoda do pobierania danych użytkownika po załadowaniu ekranu
   void _loadUserProfile() async {
     final userData = await _firestoreService.getCurrentUserProfile();
+    _groupId = await _firestoreService.getCurrentUserGroupId();
+    _groupName = await _firestoreService.getGroupName(_groupId);
     if (mounted) {
       setState(() {
         _isLoading = false;
@@ -93,7 +99,15 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+  return PopScope(
+    canPop: false, // BLOKUJEMY normalne cofanie
+    onPopInvoked: (didPop) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const HomeScreen()), 
+        (route) => false, // USUWA CAŁY STACK
+      );
+    },
+    child: Scaffold(
       backgroundColor: backgroundColor, 
       
       // --- APP BAR ---
@@ -104,7 +118,12 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const HomeScreen()),
+                (route) => false,
+              );
+          },
         ),
       ),
       
@@ -212,6 +231,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                 ),
               ),
             ),
-    );
+    ));
   }
 }

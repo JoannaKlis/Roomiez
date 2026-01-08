@@ -42,6 +42,13 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   final Set<String> _mockMarkedAsPaid = {};
   final Set<String> _mockConfirmedReceived = {};
 
+  // --- ZMIENNE PAGINACJI ---
+  final List<ExpenseHistoryItem> _pagedExpenses = [];
+  bool _isLoadingExpenses = false;
+  bool _hasMoreExpenses = true;
+  DocumentSnapshot? _lastDocument;
+  static const int _pageSize = 10;
+
   @override
   void initState() {
     super.initState();
@@ -79,6 +86,9 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           _splitWith = initialSplit;
           _isLoadingRoomies = false;
         });
+        
+        // Po załadowaniu grupy, załaduj pierwszą paczkę wydatków
+        _loadMoreExpenses();
       }
     } catch (e) {
       print('Group Loading Error: $e');
@@ -97,11 +107,61 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     }
   }
 
+  // --- LOGIKA PAGINACJI ---
+  Future<void> _loadMoreExpenses() async {
+    if (_isLoadingExpenses || !_hasMoreExpenses || _userGroupId.isEmpty) return;
+    
+    // Paginacja działa tylko dla zakładek 0 (Current) i 1 (Archived)
+    if (_selectedToggleIndex > 1) return;
+
+    setState(() {
+      _isLoadingExpenses = true;
+    });
+
+    try {
+      // Określ filtr na podstawie zakładki
+      bool isSettled = _selectedToggleIndex == 1;
+
+      // Pobierz z serwisu
+      final newDocs = await _firestoreService.getExpensesPaged(
+        limit: _pageSize,
+        startAfter: _lastDocument,
+        isSettled: isSettled,
+      );
+
+      final newItems = newDocs.map((doc) => ExpenseHistoryItem.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
+
+      if (mounted) {
+        setState(() {
+          _pagedExpenses.addAll(newItems);
+          if (newDocs.isNotEmpty) {
+            _lastDocument = newDocs.last;
+          }
+          if (newDocs.length < _pageSize) {
+            _hasMoreExpenses = false;
+          }
+          _isLoadingExpenses = false;
+        });
+      }
+    } catch (e) {
+       debugPrint("Error loading paged expenses: $e");
+       if(mounted) setState(() => _isLoadingExpenses = false);
+    }
+  }
+
+  // Resetowanie listy przy zmianie taba lub odświeżeniu
+  void _resetPagination() {
+    setState(() {
+      _pagedExpenses.clear();
+      _lastDocument = null;
+      _hasMoreExpenses = true;
+    });
+    _loadMoreExpenses();
+  }
+
   // --- NOWE METODY POMOCNICZE ---
 
-  // ZAMIEŃ STARĄ METODĘ NA TĘ:
   void _handleSettleUp(String receiverId, double amount) {
-    // Zamiast od razu księgować, wysyłamy prośbę
     _firestoreService.requestSettlement(receiverId, amount).then((_) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Request sent! Waiting for confirmation.'), backgroundColor: Colors.blue),
@@ -109,7 +169,6 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     });
   }
 
-  // PODMIEŃ CAŁĄ METODĘ _buildDebtCard NA TĘ:
   Widget _buildDebtCard(Debt debt, String otherName, {required bool isOwedByMe, bool isPending = false, String? pendingSettlementId}) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -118,7 +177,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         color: Colors.white, borderRadius: BorderRadius.circular(16),
         border: Border.all(color: (isPending || pendingSettlementId != null && pendingSettlementId.isNotEmpty) ? Colors.orange : borderColor),
       ),
-      child: Column( // Zmieniamy Row na Column dla lepszego układu przy potwierdzaniu
+      child: Column( 
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -128,9 +187,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 Text("${debt.amount.toStringAsFixed(2)} PLN", style: TextStyle(color: isOwedByMe ? Colors.red : Colors.green, fontWeight: FontWeight.bold, fontSize: 18, fontFamily: appFontFamily)),
               ]),
               
-              // LOGIKA PRZYCISKÓW
               if (isOwedByMe) 
-                // JA WISZĘ
                 isPending 
                   ? Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -143,13 +200,11 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                       child: const Text("Settle Up", style: TextStyle(color: Colors.white)),
                     )
               else 
-                // KTOŚ MI WISI (i nie ma prośby)
                 if (pendingSettlementId == null || pendingSettlementId.isEmpty)
-                   const SizedBox() // Nic nie pokazuj, czekamy aż on kliknie
+                   const SizedBox()
             ],
           ),
           
-          // JEŚLI KTOŚ MI WISI I KLIKNĄŁ "ODDAŁEM" -> Pokaż przyciski potwierdzenia
           if (!isOwedByMe && pendingSettlementId != null && pendingSettlementId.isNotEmpty) ...[
             const SizedBox(height: 12),
             Container(
@@ -211,6 +266,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       date: DateTime.now(),
       participantsIds: participantsIds,
       groupId: _userGroupId,
+      isSettled: false,
     );
 
     _firestoreService.addExpense(newExpense).then((_) {
@@ -225,6 +281,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
             content: Text('Expense added successfully!'),
             backgroundColor: primaryColor),
       );
+      // Odśwież listę po dodaniu nowego wydatku
+      _resetPagination();
     }).catchError((e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -261,7 +319,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       try {
         await _firestoreService.deleteAllExpenses();
         if (mounted) {
-          setState(() {});
+          setState(() {
+             // Wyczyść lokalną listę
+             _pagedExpenses.clear();
+          });
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('All expenses deleted successfully!'),
@@ -672,7 +733,15 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   Widget _buildToggleButton(String text, int index) {
     final isSelected = _selectedToggleIndex == index;
     return GestureDetector(
-      onTap: () => setState(() => _selectedToggleIndex = index),
+      onTap: () {
+        setState(() {
+          _selectedToggleIndex = index;
+        });
+        // Jeśli wracamy do Current/Archived, resetujemy i ładujemy listę
+        if (index == 0 || index == 1) {
+          _resetPagination();
+        }
+      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 12),
@@ -705,7 +774,6 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   /// Lista wydatków (filtrowana)
   Widget _buildExpensesList() {
     // --- POPRAWKA: Zabezpieczenie przed pustym ID ---
-    // Jeśli jeszcze nie załadowaliśmy ID grupy, wyświetl kółko ładowania zamiast błędu
     if (_userGroupId.isEmpty) {
       return const SliverToBoxAdapter(
         child: Center(child: CircularProgressIndicator()),
@@ -716,7 +784,6 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     // 1. ZMIANA: Nasłuchujemy Grupy (tam są salda)...
     return StreamBuilder<DocumentSnapshot>(
       stream: _firestoreService.getGroupStream(_userGroupId),
-      // ... reszta kodu bez zmian ...
       builder: (context, snapshotGroup) {
         if (!snapshotGroup.hasData) return const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()));
 
@@ -780,8 +847,6 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
             // --- NOWA LOGIKA: Liczymy długi z mapy ---
             final debts = SplitBillLogic.calculateDebtsFromMap(balances);
 
-            // ... Reszta kodu (zakładki Owed/Lent) bez zmian ...
-            // ... (Ale uwaga: Zakładka "ALL" (historia) musi teraz mieć WŁASNY StreamBuilder) ...
             // --- ZAKŁADKA "OWED" (Komu ja wiszę) ---
             if (_selectedToggleIndex == 2) {
               final myDebts = debts.where((d) => d.fromUser == _currentUserId).toList();
@@ -809,8 +874,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 
                 // Sprawdź czy ktoś zgłosił, że mi oddał
                 var pendingRequest = pendingSettlements.firstWhere(
-                    (s) => s['fromUserId'] == d.fromUser && s['toUserId'] == _currentUserId, 
-                    orElse: () => {}
+                  (s) => s['fromUserId'] == d.fromUser && s['toUserId'] == _currentUserId, 
+                  orElse: () => {}
                 );
 
                 return _buildDebtCard(d, name, isOwedByMe: false, pendingSettlementId: pendingRequest['id']);
@@ -818,28 +883,40 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
             }
 
             // --- ZAKŁADKI "CURRENT" / "ARCHIVED" (Historia rozliczeń) ---
-            // Current: nierozliczone (isSettled == false)
-            // Archived: rozliczone (isSettled == true)
+            // TU JEST PAGINACJA
             if (_selectedToggleIndex == 0 || _selectedToggleIndex == 1) {
-              final bool settledFilter = _selectedToggleIndex == 1;
-              return StreamBuilder<List<ExpenseHistoryItem>>(
-                stream: _firestoreService.getExpenses(isSettled: settledFilter),
-                builder: (context, snapshotHistory) {
-                  if (!snapshotHistory.hasData) {
-                    return const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()));
-                  }
+              if (_pagedExpenses.isEmpty && !_isLoadingExpenses) {
+                 return const SliverToBoxAdapter(child: Center(child: Padding(padding: EdgeInsets.only(top: 20), child: Text("No expenses found."))));
+              }
 
-                  final history = snapshotHistory.data!;
-                  if (history.isEmpty) {
-                    return const SliverToBoxAdapter(child: Center(child: Text("No expenses yet.")));
-                  }
-
-                  return SliverList(delegate: SliverChildBuilderDelegate((context, index) {
-                    return Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: _buildExpenseListItem(history[index]));
-                  }, childCount: history.length));
+              return SliverList(delegate: SliverChildBuilderDelegate((context, index) {
+                // Jeśli jesteśmy na końcu listy i jest więcej do pobrania -> pokaż przycisk
+                if (index == _pagedExpenses.length) {
+                   if (_hasMoreExpenses) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        child: Center(
+                           child: _isLoadingExpenses 
+                             ? const CircularProgressIndicator(color: primaryColor)
+                             : TextButton(
+                                 onPressed: _loadMoreExpenses,
+                                 child: const Text("Load more", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                               )
+                        ),
+                      );
+                   } else {
+                     return const Padding(
+                       padding: EdgeInsets.all(20.0),
+                       child: Center(child: Text("No more expenses.", style: TextStyle(color: lightTextColor))),
+                     );
+                   }
                 }
-              );
+                
+                final item = _pagedExpenses[index];
+                return Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: _buildExpenseListItem(item));
+              }, childCount: _pagedExpenses.length + 1)); // +1 dla przycisku Load More
             }
+            
             // Fallback: ensure we always return a Widget from this builder
             return const SliverToBoxAdapter(child: Center(child: Text("No view selected.")));
           }

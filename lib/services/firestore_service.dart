@@ -231,7 +231,6 @@ class FirestoreService {
     await _firestore.collection('tasks').doc(taskId).update(updateData);
   }
 
-  // !!! NOWE: USUWANIE ZADANIA
   Future<void> deleteTask(String taskId) async {
     await _firestore.collection('tasks').doc(taskId).delete();
   }
@@ -392,6 +391,35 @@ class FirestoreService {
         return items;
       });
     });
+  }
+
+  // !!! NOWE: POBIERANIE Z PAGINACJĄ (PARTIAMI) !!!
+  Future<List<DocumentSnapshot>> getExpensesPaged({
+    required int limit,
+    DocumentSnapshot? startAfter,
+    bool? isSettled,
+  }) async {
+    final groupId = await getCurrentUserGroupId();
+    
+    Query query = _firestore
+        .collection('expenses')
+        .where('groupId', isEqualTo: groupId)
+        .orderBy('date', descending: true);
+
+    // Filtrowanie isSettled
+    if (isSettled != null) {
+       query = query.where('isSettled', isEqualTo: isSettled);
+    }
+    
+    // Paginacja
+    if (startAfter != null) {
+      query = query.startAfterDocument(startAfter);
+    }
+    
+    query = query.limit(limit);
+
+    final snapshot = await query.get();
+    return snapshot.docs;
   }
 
   // POBIERANIE DANYCH PROFILU UŻYTKOWNIKA

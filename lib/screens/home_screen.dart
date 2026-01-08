@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
 import 'dart:math';
 import '../models/task_model.dart';
+import '../models/announcement_model.dart'; // Import modelu ogłoszeń
 import 'package:intl/intl.dart';
 import '../constants.dart';
 import 'tasks_screen.dart';
@@ -12,10 +13,12 @@ import 'expenses_screen.dart';
 import 'announcements_screen.dart';
 import 'profile_edit_screen.dart';
 import '../widgets/menu_bar.dart';
-import '../models/expense_history_item.dart'; 
+import '../models/expense_history_item.dart';
 
 class HomeScreen extends StatefulWidget {
-    const HomeScreen({super.key,});
+  const HomeScreen({
+    super.key,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -29,33 +32,32 @@ class _HomeScreenState extends State<HomeScreen> {
   String _groupName = '';
   bool _isLoadingGroup = true;
 
-@override
-void initState() {
-  super.initState();
-  _loadUserName();
-  _loadGroup();
-}
-
-Future<void> _loadGroup() async {
-  try {
-    final gid = await _firestoreService.getCurrentUserGroupId();
-    final name = await _firestoreService.getGroupName(gid);
-
-    if (!mounted) return;
-
-    setState(() {
-      _groupId = gid;
-      _groupName = name;
-      _isLoadingGroup = false;
-    });
-  } catch (e) {
-    if (!mounted) return;
-    setState(() {
-      _isLoadingGroup = false;
-    });
+  @override
+  void initState() {
+    super.initState();
+    _loadUserName();
+    _loadGroup();
   }
-}
 
+  Future<void> _loadGroup() async {
+    try {
+      final gid = await _firestoreService.getCurrentUserGroupId();
+      final name = await _firestoreService.getGroupName(gid);
+
+      if (!mounted) return;
+
+      setState(() {
+        _groupId = gid;
+        _groupName = name;
+        _isLoadingGroup = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingGroup = false;
+      });
+    }
+  }
 
   // Funkcja pobierająca imię z Firebase
   Future<void> _loadUserName() async {
@@ -69,13 +71,13 @@ Future<void> _loadGroup() async {
 
   @override
   Widget build(BuildContext context) {
-      if (_isLoadingGroup || _groupId.isEmpty) {
-    return const Scaffold(
-      body: Center(
-        child: CircularProgressIndicator(),
-      ),
-    );
-  }
+    if (_isLoadingGroup || _groupId.isEmpty) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
     return Scaffold(
       backgroundColor: backgroundColor, // Czysta biel
 
@@ -119,18 +121,53 @@ Future<void> _loadGroup() async {
         ),
         centerTitle: true,
         actions: [
-          IconButton(
-            icon: const Icon(
-              Icons.notifications_none_rounded,
-              size: 28,
-              color: textColor,
-            ),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AnnouncementsScreen(),
-                ),
+          // StreamBuilder sprawdzający nieprzeczytane ogłoszenia
+          StreamBuilder<List<Announcement>>(
+            stream: _firestoreService.getAnnouncements(),
+            builder: (context, snapshot) {
+              bool hasUnread = false;
+              if (snapshot.hasData) {
+                final uid = FirebaseAuth.instance.currentUser?.uid;
+                if (uid != null) {
+                  // Sprawdź czy jest jakiekolwiek ogłoszenie, którego 'readBy' nie zawiera mojego ID
+                  hasUnread =
+                      snapshot.data!.any((a) => !a.readBy.contains(uid));
+                }
+              }
+
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.notifications_none_rounded,
+                      size: 28,
+                      color: textColor,
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AnnouncementsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  if (hasUnread)
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: backgroundColor, width: 1.5),
+                        ),
+                      ),
+                    ),
+                ],
               );
             },
           ),
@@ -325,39 +362,63 @@ class _ExpensesCard extends StatelessWidget {
   final String groupId; // Musimy to przekazać
   final VoidCallback onGoToExpenses;
 
-  const _ExpensesCard({super.key, required this.groupId, required this.onGoToExpenses});
+  const _ExpensesCard(
+      {super.key, required this.groupId, required this.onGoToExpenses});
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<ExpenseHistoryItem>>(
-      stream: FirestoreService().getRecentExpensesStream(groupId), // Pobieranie z bazy
-      builder: (context, snapshot) {
-        final expenses = snapshot.data ?? [];
-        return Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: borderColor)),
-          child: Column(
-            children: [
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                 const Text("Recent Activity", style: TextStyle(fontWeight: FontWeight.bold, fontFamily: appFontFamily)),
-                 GestureDetector(onTap: onGoToExpenses, child: const Text("See all", style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold))),
-              ]),
-              const Divider(height: 20, color: borderColor),
-              if (expenses.isEmpty) const Padding(padding: EdgeInsets.all(8.0), child: Text("No recent expenses", style: TextStyle(color: lightTextColor))),
-              ...expenses.map((e) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6.0),
-                child: Row(children: [
-                   const Icon(Icons.receipt_long, size: 18, color: lightTextColor),
-                   const SizedBox(width: 8),
-                   Expanded(child: Text(e.description, style: const TextStyle(fontWeight: FontWeight.w600))),
-                   Text("${e.amount.toStringAsFixed(2)} PLN", style: const TextStyle(fontWeight: FontWeight.bold)),
-                ]),
-              )),
-            ],
-          ),
-        );
-      }
-    );
+        stream: FirestoreService()
+            .getRecentExpensesStream(groupId), // Pobieranie z bazy
+        builder: (context, snapshot) {
+          final expenses = snapshot.data ?? [];
+          return Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: borderColor)),
+            child: Column(
+              children: [
+                Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text("Recent Activity",
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontFamily: appFontFamily)),
+                      GestureDetector(
+                          onTap: onGoToExpenses,
+                          child: const Text("See all",
+                              style: TextStyle(
+                                  color: primaryColor,
+                                  fontWeight: FontWeight.bold))),
+                    ]),
+                const Divider(height: 20, color: borderColor),
+                if (expenses.isEmpty)
+                  const Padding(
+                      padding: EdgeInsets.all(8.0),
+                      child: Text("No recent expenses",
+                          style: TextStyle(color: lightTextColor))),
+                ...expenses.map((e) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6.0),
+                      child: Row(children: [
+                        const Icon(Icons.receipt_long,
+                            size: 18, color: lightTextColor),
+                        const SizedBox(width: 8),
+                        Expanded(
+                            child: Text(e.description,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600))),
+                        Text("${e.amount.toStringAsFixed(2)} PLN",
+                            style:
+                                const TextStyle(fontWeight: FontWeight.bold)),
+                      ]),
+                    )),
+              ],
+            ),
+          );
+        });
   }
 }
 
@@ -400,12 +461,15 @@ class _TasksCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: borderColor),
             ),
-            child: Text('Error loading tasks: $err', style: const TextStyle(color: Colors.red)),
+            child: Text('Error loading tasks: $err',
+                style: const TextStyle(color: Colors.red)),
           );
         }
 
         final tasks = snapshot.data ?? [];
-        final myTasks = tasks.where((t) => t.assignedToId == currentUserId && !t.isDone).toList();
+        final myTasks = tasks
+            .where((t) => t.assignedToId == currentUserId && !t.isDone)
+            .toList();
 
         if (myTasks.isEmpty) {
           return Container(
@@ -423,7 +487,8 @@ class _TasksCard extends StatelessWidget {
                     color: primaryColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: const Icon(Icons.task_alt_outlined, size: 28, color: primaryColor),
+                  child: const Icon(Icons.task_alt_outlined,
+                      size: 28, color: primaryColor),
                 ),
                 const SizedBox(width: 15),
                 Expanded(
@@ -470,7 +535,8 @@ class _TasksCard extends StatelessWidget {
                   color: primaryColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(Icons.task_alt_outlined, size: 28, color: primaryColor),
+                child: const Icon(Icons.task_alt_outlined,
+                    size: 28, color: primaryColor),
               ),
               const SizedBox(width: 15),
               Expanded(
@@ -491,7 +557,8 @@ class _TasksCard extends StatelessWidget {
                             fontFamily: appFontFamily,
                             fontWeight: FontWeight.w800,
                             fontSize: 16)),
-                    Text('Due: ${DateFormat('dd.MM.yyyy HH:mm').format(nearest.dueDate)}',
+                    Text(
+                        'Due: ${DateFormat('dd.MM.yyyy HH:mm').format(nearest.dueDate)}',
                         style: const TextStyle(
                             color: lightTextColor,
                             fontFamily: appFontFamily,
@@ -514,69 +581,74 @@ class _ShoppingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: FirestoreService().getShoppingList(),
-      builder: (context, snapshot) {
-        // Filtrujemy - pokazujemy tylko niekupione lub kupione w ostatniej godzinie
-        final now = DateTime.now();
-        final allItems = snapshot.data ?? [];
-        final filteredItems = allItems.where((item) {
-          final isBought = item['isBought'] ?? false;
-          
-          // Jeśli nie kupione, pokazujemy
-          if (!isBought) return true;
-          
-          // Jeśli kupione, sprawdzamy czy w ostatniej godzinie
-          if (isBought) {
-            final boughtAtRaw = item['boughtAt'];
-            if (boughtAtRaw is Timestamp) {
-              final boughtAt = boughtAtRaw.toDate();
-              final timeSinceBought = now.difference(boughtAt);
-              return timeSinceBought.inHours < 1;
+        stream: FirestoreService().getShoppingList(),
+        builder: (context, snapshot) {
+          // Filtrujemy - pokazujemy tylko niekupione lub kupione w ostatniej godzinie
+          final now = DateTime.now();
+          final allItems = snapshot.data ?? [];
+          final filteredItems = allItems.where((item) {
+            final isBought = item['isBought'] ?? false;
+
+            // Jeśli nie kupione, pokazujemy
+            if (!isBought) return true;
+
+            // Jeśli kupione, sprawdzamy czy w ostatniej godzinie
+            if (isBought) {
+              final boughtAtRaw = item['boughtAt'];
+              if (boughtAtRaw is Timestamp) {
+                final boughtAt = boughtAtRaw.toDate();
+                final timeSinceBought = now.difference(boughtAt);
+                return timeSinceBought.inHours < 1;
+              }
             }
-          }
-          return false;
-        }).toList();
+            return false;
+          }).toList();
 
-        // Sortujemy - priorytetowe na górze, potem niekupione, najnowsze na górze
-        filteredItems.sort((a, b) {
-          final priorityA = a['isPriority'] ?? false;
-          final priorityB = b['isPriority'] ?? false;
-          if (priorityA != priorityB) return priorityB ? 1 : -1; // Priorytetowe first
-          
-          final boughtA = a['isBought'] ?? false;
-          final boughtB = b['isBought'] ?? false;
-          if (boughtA != boughtB) return boughtA ? 1 : -1; // Niekupione first
-          
-          // Najnowsze na górze
-          final createdA = a['createdAt'] as Timestamp?;
-          final createdB = b['createdAt'] as Timestamp?;
-          if (createdA == null || createdB == null) return 0;
-          return createdB.compareTo(createdA);
+          // Sortujemy - priorytetowe na górze, potem niekupione, najnowsze na górze
+          filteredItems.sort((a, b) {
+            final priorityA = a['isPriority'] ?? false;
+            final priorityB = b['isPriority'] ?? false;
+            if (priorityA != priorityB)
+              return priorityB ? 1 : -1; // Priorytetowe first
+
+            final boughtA = a['isBought'] ?? false;
+            final boughtB = b['isBought'] ?? false;
+            if (boughtA != boughtB) return boughtA ? 1 : -1; // Niekupione first
+
+            // Najnowsze na górze
+            final createdA = a['createdAt'] as Timestamp?;
+            final createdB = b['createdAt'] as Timestamp?;
+            if (createdA == null || createdB == null) return 0;
+            return createdB.compareTo(createdA);
+          });
+
+          final itemsToShow = filteredItems.take(3).toList();
+
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: borderColor)),
+            child: Column(
+              children: [
+                if (itemsToShow.isEmpty)
+                  const Text("List is empty! Add something.",
+                      style: TextStyle(color: lightTextColor)),
+                for (var item in itemsToShow) _buildShoppingItem(context, item),
+              ],
+            ),
+          );
         });
-
-        final itemsToShow = filteredItems.take(3).toList();
-        
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: borderColor)),
-          child: Column(
-            children: [
-               if (itemsToShow.isEmpty) const Text("List is empty! Add something.", style: TextStyle(color: lightTextColor)),
-               for (var item in itemsToShow)
-                 _buildShoppingItem(context, item),
-            ],
-          ),
-        );
-      }
-    );
   }
 
   Widget _buildShoppingItem(BuildContext context, Map<String, dynamic> item) {
     final isBought = item['isBought'] ?? false;
     final isPriority = item['isPriority'] ?? false;
-    
+
     return GestureDetector(
-      onTap: () => FirestoreService().toggleShoppingItemStatus(item['id'], isBought),
+      onTap: () =>
+          FirestoreService().toggleShoppingItemStatus(item['id'], isBought),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Row(
@@ -608,7 +680,8 @@ class _ShoppingCard extends StatelessWidget {
                   ),
                   // Timer dla kupionego itemu
                   if (isBought)
-                    _ShoppingItemTimer(boughtAt: (item['boughtAt'] as Timestamp).toDate()),
+                    _ShoppingItemTimer(
+                        boughtAt: (item['boughtAt'] as Timestamp).toDate()),
                 ],
               ),
             ),
@@ -618,8 +691,6 @@ class _ShoppingCard extends StatelessWidget {
     );
   }
 }
-
-
 
 class _ShoppingItem extends StatelessWidget {
   final String name;
@@ -716,6 +787,7 @@ class _SectionHeader extends StatelessWidget {
     );
   }
 }
+
 /// Widget stateful do pokazywania countdown'u dla kupionego przedmiotu na home screen
 class _ShoppingItemTimer extends StatefulWidget {
   final DateTime boughtAt;
@@ -749,7 +821,8 @@ class _ShoppingItemTimerState extends State<_ShoppingItemTimer> {
   Widget build(BuildContext context) {
     final now = DateTime.now();
     final timeSinceBought = now.difference(widget.boughtAt);
-    final remainingSeconds = max(0, (60 * 60) - timeSinceBought.inSeconds); // 1h = 3600s
+    final remainingSeconds =
+        max(0, (60 * 60) - timeSinceBought.inSeconds); // 1h = 3600s
     final minutesRemaining = remainingSeconds ~/ 60;
     final secondsRemaining = remainingSeconds % 60;
 

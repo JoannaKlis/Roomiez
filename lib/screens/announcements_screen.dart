@@ -5,6 +5,7 @@ import '../constants.dart';
 import '../services/firestore_service.dart';
 import '../models/announcement_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Import potrzebny do aktualizacji statusu
 
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
@@ -131,6 +132,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
       final imageUrls = await _uploadImagesAndGetUrls();
 
       // 2. Stwórz ogłoszenie
+      // Autor jest pierwszym, który "przeczytał"
       final announcement = Announcement(
         id: '',
         title: _titleController.text.trim(),
@@ -140,6 +142,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
         createdByName: _creatorName,
         createdAt: DateTime.now(),
         imageUrls: imageUrls,
+        readBy: [_creatorId], // Autor automatycznie ma przeczytane
       );
 
       // 3. Zapisz w Firestore
@@ -166,7 +169,29 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
     }
   }
 
+  // Funkcja oznaczająca ogłoszenie jako przeczytane
+  Future<void> _markAsRead(Announcement announcement) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    if (!announcement.readBy.contains(uid)) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('announcements')
+            .doc(announcement.id)
+            .update({
+          'readBy': FieldValue.arrayUnion([uid])
+        });
+      } catch (e) {
+        debugPrint("Failed to mark as read: $e");
+      }
+    }
+  }
+
   void _showAnnouncementDetails(Announcement announcement) {
+    // Oznaczamy jako przeczytane przy otwarciu
+    _markAsRead(announcement);
+
     showDialog(
       context: context,
       builder: (context) {
@@ -544,6 +569,8 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
   }
 
   Widget _buildAnnouncementsList() {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+
     return StreamBuilder<List<Announcement>>(
       stream: _firestoreService.getAnnouncements(),
       builder: (context, snapshot) {
@@ -592,6 +619,9 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
           separatorBuilder: (_, __) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
             final announcement = announcements[index];
+            final bool isUnread =
+                !announcement.readBy.contains(currentUserId);
+
             return GestureDetector(
               onTap: () => _showAnnouncementDetails(announcement),
               child: Container(
@@ -611,41 +641,78 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: surfaceColor,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.campaign_rounded,
-                        color: primaryColor,
-                        size: 24,
-                      ),
+                    Stack(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: surfaceColor,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.campaign_rounded,
+                            color: primaryColor,
+                            size: 24,
+                          ),
+                        ),
+                        if (isUnread)
+                          Positioned(
+                            top: 0,
+                            right: 0,
+                            child: Container(
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                    color: Colors.white, width: 1.5),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                     const SizedBox(width: 16),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            announcement.title,
-                            style: const TextStyle(
-                              color: textColor,
-                              fontFamily: appFontFamily,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 16,
-                            ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                announcement.title,
+                                style: TextStyle(
+                                  color: textColor,
+                                  fontFamily: appFontFamily,
+                                  fontWeight: isUnread
+                                      ? FontWeight.w900
+                                      : FontWeight.w800,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              if (isUnread)
+                                Container(
+                                  margin: const EdgeInsets.only(left: 8),
+                                  width: 8,
+                                  height: 8,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                            ],
                           ),
                           const SizedBox(height: 4),
                           Text(
                             announcement.body,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: lightTextColor,
+                            style: TextStyle(
+                              color: isUnread ? textColor : lightTextColor,
                               fontFamily: appFontFamily,
                               fontSize: 13,
+                              fontWeight: isUnread ? FontWeight.w600 : FontWeight.normal,
                               height: 1.4,
                             ),
                           ),
@@ -700,100 +767,105 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
 
   @override
   Widget build(BuildContext context) {
-  return PopScope(
-    canPop: false, // BLOKUJEMY normalne cofanie
-    onPopInvoked: (didPop) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const HomeScreen()), 
-        (route) => false, // USUWA CAŁY STACK
-      );
-    },
-    child: Scaffold(
-      backgroundColor: backgroundColor,
-      appBar: AppBar(
-        backgroundColor: backgroundColor,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu_rounded, size: 28, color: textColor),
-            onPressed: () {
-              Scaffold.of(context).openDrawer();
-            },
-          ),
-        ),
-        title: Column(
-          children: [
-            const Text(
-              'ROOMIES',
-              style: TextStyle(
-                color: primaryColor,
-                fontFamily: 'StackSansNotch',
-                fontWeight: FontWeight.w900,
-                letterSpacing: 0.5,
-                fontSize: 20,
+    return PopScope(
+        canPop: false, // BLOKUJEMY normalne cofanie
+        onPopInvoked: (didPop) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const HomeScreen()),
+            (route) => false, // USUWA CAŁY STACK
+          );
+        },
+        child: Scaffold(
+          backgroundColor: backgroundColor,
+          appBar: AppBar(
+            backgroundColor: backgroundColor,
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
+            leading: Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(Icons.menu_rounded,
+                    size: 28, color: textColor),
+                onPressed: () {
+                  Scaffold.of(context).openDrawer();
+                },
               ),
             ),
-            Text(
-              _groupName.isNotEmpty ? _groupName.toUpperCase() : '',
-              style: const TextStyle(
-                color: lightTextColor,
-                fontFamily: appFontFamily,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.0,
-              ),
-            ),
-          ],
-        ),
-        centerTitle: true,
-        // actions: [
-        //   IconButton(
-        //     icon: const Icon(Icons.notifications_none_rounded,
-        //         size: 28, color: textColor),
-        //     onPressed: () {},
-        //   ),
-        // ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20),
-        child: Column(
-          children: [
-            const Center(
-              child: Text(
-                'Updates',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w800,
-                  color: textColor,
-                  fontFamily: appFontFamily,
-                  letterSpacing: -1.0,
+            title: Column(
+              children: [
+                const Text(
+                  'ROOMIES',
+                  style: TextStyle(
+                    color: primaryColor,
+                    fontFamily: 'StackSansNotch',
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5,
+                    fontSize: 20,
+                  ),
                 ),
-              ),
+                Text(
+                  _groupName.isNotEmpty ? _groupName.toUpperCase() : '',
+                  style: const TextStyle(
+                    color: lightTextColor,
+                    fontFamily: appFontFamily,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 20),
-            _buildHeaderCard(),
-            const SizedBox(height: 10),
-            AnimatedSize(
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeInOut,
-              child: _isFormVisible
-                  ? Column(
-                      children: [
-                        _buildNewAnnouncementForm(),
-                        const SizedBox(height: 12),
-                      ],
-                    )
-                  : const SizedBox.shrink(),
+            centerTitle: true,
+            // actions: [
+            //   IconButton(
+            //     icon: const Icon(Icons.notifications_none_rounded,
+            //         size: 28, color: textColor),
+            //     onPressed: () {},
+            //   ),
+            // ],
+          ),
+          body: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20),
+            child: Column(
+              children: [
+                const Center(
+                  child: Text(
+                    'Announcements', // Zmiana z "Updates"
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w800,
+                      color: textColor,
+                      fontFamily: appFontFamily,
+                      letterSpacing: -1.0,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                _buildHeaderCard(),
+                const SizedBox(height: 10),
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeInOut,
+                  child: _isFormVisible
+                      ? Column(
+                          children: [
+                            _buildNewAnnouncementForm(),
+                            const SizedBox(height: 12),
+                          ],
+                        )
+                      : const SizedBox.shrink(),
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: _buildAnnouncementsList(),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: _buildAnnouncementsList(),
-            ),
-          ],
-        ),
-      ),
-      drawer: mb.CustomDrawer(roomName: _groupName, groupId: _userGroupId, currentRoute: "announcements",),
-    ));
+          ),
+          drawer: mb.CustomDrawer(
+            roomName: _groupName,
+            groupId: _userGroupId,
+            currentRoute: "announcements",
+          ),
+        ));
   }
 }

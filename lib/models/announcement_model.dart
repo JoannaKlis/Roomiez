@@ -9,6 +9,7 @@ class Announcement {
   final String createdByName;
   final DateTime createdAt;
   final List<String> imageUrls;
+  final List<String> readBy; // Nowe pole
 
   Announcement({
     required this.id,
@@ -19,6 +20,7 @@ class Announcement {
     required this.createdByName,
     required this.createdAt,
     this.imageUrls = const [],
+    this.readBy = const [], // Domyślnie pusta lista
   });
 
   factory Announcement.fromMap(Map<String, dynamic> data, String documentId) {
@@ -33,6 +35,9 @@ class Announcement {
       imageUrls: (data['imageUrls'] as List<dynamic>? ?? [])
           .map((e) => e as String)
           .toList(),
+      readBy: (data['readBy'] as List<dynamic>? ?? [])
+          .map((e) => e as String)
+          .toList(),
     );
   }
 
@@ -45,6 +50,7 @@ class Announcement {
       'createdByName': createdByName,
       'createdAt': createdAt,
       'imageUrls': imageUrls,
+      'readBy': readBy,
     };
   }
 }

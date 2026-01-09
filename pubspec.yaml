@@ -1,7 +1,7 @@
 name: roomies
 description: A roommate management application
 publish_to: "none"
-version: 1.0.0+1
+version: 1.0.0+2
 
 environment:
   sdk: ">=3.1.0 <4.0.0"
@@ -22,6 +22,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
@@ -37,3 +38,8 @@ flutter:
 
   assets:
    - assets/images/logo_roomies.png
+
+flutter_icons:
+  android: true
+  ios: true
+  image_path: assets/images/logo_roomies.png

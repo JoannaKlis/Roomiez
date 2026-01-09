@@ -13,7 +13,7 @@ import '../screens/login_screen.dart';
 import '../screens/members_screen.dart';
 import '../screens/shopping_list_screen.dart'; // <--- DODANO: Import listy zakupów
 
-class CustomDrawer extends StatelessWidget {
+class CustomDrawer extends StatefulWidget {
   final String groupId;
   final String roomName;
   final String currentRoute; 
@@ -25,10 +25,42 @@ class CustomDrawer extends StatelessWidget {
     this.currentRoute = 'dashboard', 
   });
 
+  @override
+  State<CustomDrawer> createState() => _CustomDrawerState();
+}
+
+class _CustomDrawerState extends State<CustomDrawer> {
   final FirestoreService _firestoreService = FirestoreService();
+  bool _isApartmentManager = false;
+  bool _isLoadingRole = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkIfManager();
+  }
+
+  Future<void> _checkIfManager() async {
+    try {
+      final isManager = await _firestoreService.isCurrentUserApartmentManager(widget.groupId);
+      if (mounted) {
+        setState(() {
+          _isApartmentManager = isManager;
+          _isLoadingRole = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error checking manager status: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingRole = false;
+        });
+      }
+    }
+  }
 
   void _copyToClipboard(BuildContext context) {
-    Clipboard.setData(ClipboardData(text: groupId));
+    Clipboard.setData(ClipboardData(text: widget.groupId));
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Invite code copied!'),
@@ -108,7 +140,6 @@ void _showExitGroupDialog(BuildContext context) {
   );
 }
 
-
   @override
   Widget build(BuildContext context) {
     return Drawer(
@@ -141,7 +172,7 @@ void _showExitGroupDialog(BuildContext context) {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      roomName.isNotEmpty ? roomName : 'My Place',
+                      widget.roomName.isNotEmpty ? widget.roomName : 'My Place',
                       style: const TextStyle(
                         fontFamily: appFontFamily,
                         fontSize: 14,
@@ -154,57 +185,74 @@ void _showExitGroupDialog(BuildContext context) {
               ),
             ),
             
-            // --- KARTA KODU ZAPROSZENIA ---
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: surfaceColor,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: borderColor),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'INVITE CODE',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: lightTextColor,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1.0,
+            // --- KARTA KODU ZAPROSZENIA (Tylko dla apartment managera) ---
+            if (_isLoadingRole)
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: surfaceColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: borderColor),
+                ),
+                child: const SizedBox(
+                  height: 40,
+                  child: Center(
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              )
+            else if (_isApartmentManager)
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: surfaceColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: borderColor),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'INVITE CODE',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: lightTextColor,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.0,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          groupId,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: textColor,
-                            fontFamily: 'Monospace',
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            widget.groupId,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: textColor,
+                              fontFamily: 'Monospace',
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                      InkWell(
-                        onTap: () => _copyToClipboard(context),
-                        borderRadius: BorderRadius.circular(8),
-                        child: const Padding(
-                          padding: EdgeInsets.all(6.0),
-                          child: Icon(Icons.copy_rounded,
-                              size: 18, color: primaryColor),
+                        InkWell(
+                          onTap: () => _copyToClipboard(context),
+                          borderRadius: BorderRadius.circular(8),
+                          child: const Padding(
+                            padding: EdgeInsets.all(6.0),
+                            child: Icon(Icons.copy_rounded,
+                                size: 18, color: primaryColor),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
 
             const SizedBox(height: 20),
 
@@ -217,10 +265,10 @@ void _showExitGroupDialog(BuildContext context) {
                   _DrawerItem(
                     icon: Icons.dashboard_rounded,
                     label: 'Dashboard',
-                    isActive: currentRoute == 'dashboard' || currentRoute == '',
+                    isActive: widget.currentRoute == 'dashboard' || widget.currentRoute == '',
                     onTap: () {
                       Navigator.pop(context);
-                      if (currentRoute != 'dashboard' && currentRoute != '') {
+                      if (widget.currentRoute != 'dashboard' && widget.currentRoute != '') {
                         Navigator.pushAndRemoveUntil(
                           context,
                           MaterialPageRoute(
@@ -236,10 +284,10 @@ void _showExitGroupDialog(BuildContext context) {
                   _DrawerItem(
                     icon: Icons.receipt_long_rounded,
                     label: 'Expenses',
-                    isActive: currentRoute == 'expenses',
+                    isActive: widget.currentRoute == 'expenses',
                     onTap: () {
                       Navigator.pop(context);
-                      if (currentRoute != 'expenses') {
+                      if (widget.currentRoute != 'expenses') {
                         Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -252,10 +300,10 @@ void _showExitGroupDialog(BuildContext context) {
                   _DrawerItem(
                     icon: Icons.check_circle_outline_rounded,
                     label: 'Tasks',
-                    isActive: currentRoute == 'tasks',
+                    isActive: widget.currentRoute == 'tasks',
                     onTap: () {
                       Navigator.pop(context);
-                      if (currentRoute != 'tasks') {
+                      if (widget.currentRoute != 'tasks') {
                         Navigator.push(context,
                             MaterialPageRoute(builder: (_) => const TasksScreen()));
                       }
@@ -266,10 +314,10 @@ void _showExitGroupDialog(BuildContext context) {
                   _DrawerItem(
                     icon: Icons.shopping_cart_outlined,
                     label: 'Shopping List',
-                    isActive: currentRoute == 'shopping',
+                    isActive: widget.currentRoute == 'shopping',
                     onTap: () {
                       Navigator.pop(context);
-                      if (currentRoute != 'shopping') {
+                      if (widget.currentRoute != 'shopping') {
                         Navigator.push(
                           context,
                           MaterialPageRoute(builder: (_) => const ShoppingScreen()),
@@ -282,10 +330,10 @@ void _showExitGroupDialog(BuildContext context) {
                   _DrawerItem(
                     icon: Icons.group_outlined,
                     label: 'Members',
-                    isActive: currentRoute == 'members',
+                    isActive: widget.currentRoute == 'members',
                     onTap: () {
                       Navigator.pop(context);
-                      if (currentRoute != 'members') {
+                      if (widget.currentRoute != 'members') {
                         Navigator.push(
                           context,
                           MaterialPageRoute(builder: (_) => const MembersScreen()),

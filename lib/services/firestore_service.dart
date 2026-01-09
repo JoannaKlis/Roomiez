@@ -699,4 +699,113 @@ class FirestoreService {
     });
   }
 
+  // --- APARTMENT MANAGER PERMISSIONS ---
+
+  // Sprawdzenie czy użytkownik jest apartment managerem grupy
+  Future<bool> isCurrentUserApartmentManager(String groupId) async {
+    try {
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId == null) return false;
+
+      final userDoc = await _firestore.collection('users').doc(userId).get();
+      if (!userDoc.exists) return false;
+
+      final userRole = userDoc.data()?['role'].toString() ?? '';
+      final userGroupId = userDoc.data()?['groupId'].toString() ?? '';
+
+      return userRole == UserRole.apartmentManager && userGroupId == groupId;
+    } catch (e) {
+      debugPrint('isCurrentUserApartmentManager error: $e');
+      return false;
+    }
+  }
+
+  // Zmiana nazwy mieszkania (tylko apartment manager)
+  Future<void> updateApartmentName(String groupId, String newName) async {
+    try {
+      final isManager = await isCurrentUserApartmentManager(groupId);
+      if (!isManager) {
+        throw Exception('Only apartment manager can change the name');
+      }
+
+      await _firestore.collection('groups').doc(groupId).update({
+        'name': newName,
+      });
+    } catch (e) {
+      debugPrint('updateApartmentName error: $e');
+      rethrow;
+    }
+  }
+
+  // Usunięcie członka z mieszkania (tylko apartment manager)
+  Future<void> removeApartmentMember(String groupId, String userId) async {
+    try {
+      final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+      final isManager = await isCurrentUserApartmentManager(groupId);
+
+      if (!isManager) {
+        throw Exception('Only apartment manager can remove members');
+      }
+
+      if (currentUserId == userId) {
+        throw Exception('You cannot remove yourself from the apartment');
+      }
+
+      // Przeniesienie użytkownika do domyślnej grupy
+      await _firestore.collection('users').doc(userId).update({
+        'groupId': 'default_group',
+        'role': UserRole.user,
+      });
+    } catch (e) {
+      debugPrint('removeApartmentMember error: $e');
+      rethrow;
+    }
+  }
+
+  // Przekazanie roli managera innemu członkowi (tylko obecny manager)
+  Future<void> transferManagerRole(String groupId, String newManagerId) async {
+    try {
+      final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+      final isManager = await isCurrentUserApartmentManager(groupId);
+
+      if (!isManager) {
+        throw Exception('Only current apartment manager can transfer the role');
+      }
+
+      if (currentUserId == newManagerId) {
+        throw Exception('You are already the apartment manager');
+      }
+
+      // Sprawdzenie czy nowy manager należy do grupy
+      final newManagerDoc = await _firestore.collection('users').doc(newManagerId).get();
+      if (!newManagerDoc.exists) {
+        throw Exception('User does not exist');
+      }
+
+      final newManagerGroupId = newManagerDoc.data()?['groupId'].toString() ?? '';
+      if (newManagerGroupId != groupId) {
+        throw Exception('User is not a member of this apartment');
+      }
+
+      final batch = _firestore.batch();
+
+      // Obecny manager staje się zwykłym użytkownikiem
+      batch.update(
+        _firestore.collection('users').doc(currentUserId),
+        {'role': UserRole.user},
+      );
+
+      // Nowy manager otrzymuje rolę
+      batch.update(
+        _firestore.collection('users').doc(newManagerId),
+        {'role': UserRole.apartmentManager},
+      );
+
+      await batch.commit();
+    } catch (e) {
+      debugPrint('transferManagerRole error: $e');
+      rethrow;
+    }
+  }
+
 }

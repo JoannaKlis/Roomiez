@@ -69,6 +69,88 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // Zmiana nazwy mieszkania (tylko dla apartment managera)
+  Future<void> _changeApartmentName() async {
+    final TextEditingController nameController = TextEditingController(text: _groupName);
+    final isManager = await _firestoreService.isCurrentUserApartmentManager(_groupId);
+
+    if (!isManager) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Only apartment manager can change the name'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: const Text('Change Apartment Name'),
+        content: TextField(
+          controller: nameController,
+          decoration: const InputDecoration(
+            hintText: 'Enter new apartment name',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final newName = nameController.text.trim();
+              if (newName.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please enter a name'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+
+              try {
+                await _firestoreService.updateApartmentName(_groupId, newName);
+                if (mounted) {
+                  setState(() {
+                    _groupName = newName;
+                  });
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Apartment name updated'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.green),
+            child: const Text('Change'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoadingGroup || _groupId.isEmpty) {
@@ -107,15 +189,48 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             if (_groupName.isNotEmpty)
-              Text(
-                _groupName.toUpperCase(),
-                style: const TextStyle(
-                  color: lightTextColor,
-                  fontFamily: appFontFamily,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.0,
-                ),
+              FutureBuilder<bool>(
+                future: _firestoreService.isCurrentUserApartmentManager(_groupId),
+                builder: (context, snapshot) {
+                  final isManager = snapshot.data ?? false;
+                  if (isManager) {
+                    return GestureDetector(
+                      onTap: _changeApartmentName,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _groupName.toUpperCase(),
+                            style: const TextStyle(
+                              color: lightTextColor,
+                              fontFamily: appFontFamily,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.edit_outlined,
+                            size: 10,
+                            color: lightTextColor,
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                  // Nie pokazujemy ikony edycji ani interakcji, jeśli nie jest managerem
+                  return Text(
+                    _groupName.toUpperCase(),
+                    style: const TextStyle(
+                      color: lightTextColor,
+                      fontFamily: appFontFamily,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.0,
+                    ),
+                  );
+                },
               ),
           ],
         ),

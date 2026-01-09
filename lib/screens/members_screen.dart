@@ -23,6 +23,7 @@ class _MembersScreenState extends State<MembersScreen> {
   List<Map<String, dynamic>> _members =
       []; // Zmieniono na dynamic, żeby trzymać też rolę
   bool _isLoading = true;
+  bool _isCurrentUserManager = false;
 
   @override
   void initState() {
@@ -37,6 +38,9 @@ class _MembersScreenState extends State<MembersScreen> {
 
       // 2. Pobieramy nazwę grupy
       final groupName = await _firestoreService.getGroupName(groupId);
+
+      // Sprawdzamy czy zalogowany użytkownik jest apartment managerem
+      final isManager = await _firestoreService.isCurrentUserApartmentManager(groupId);
 
       // 3. Pobieramy listę członków WRAZ Z ROLAMI
       // Używamy bezpośredniego zapytania tutaj, aby mieć pewność, że mamy pole 'role'
@@ -60,6 +64,7 @@ class _MembersScreenState extends State<MembersScreen> {
         setState(() {
           _groupId = groupId;
           _groupName = groupName;
+          _isCurrentUserManager = isManager;
           _members = members;
           _isLoading = false;
         });
@@ -72,6 +77,110 @@ class _MembersScreenState extends State<MembersScreen> {
         });
       }
     }
+  }
+
+  // Usunięcie członka z mieszkania
+  Future<void> _removeMember(String userId) async {
+    try {
+      await _firestoreService.removeApartmentMember(_groupId, userId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Member removed from the apartment'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        // Odśwież listę
+        await _loadData();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // Przekazanie roli managera
+  Future<void> _transferManagerRole(String newManagerId) async {
+    try {
+      await _firestoreService.transferManagerRole(_groupId, newManagerId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Manager role transferred successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        // Odśwież listę
+        await _loadData();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // Pokazanie dialogu do potwierdzenia usunięcia członka
+  void _showRemoveMemberDialog(String userId, String memberName) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: const Text('Remove Member?'),
+        content: Text('Are you sure you want to remove $memberName from the apartment?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _removeMember(userId);
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Pokazanie dialogu do transferu roli
+  void _showTransferRoleDialog(String newManagerId, String memberName) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: const Text('Transfer Manager Role?'),
+        content: Text('Transfer the apartment manager role to $memberName?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _transferManagerRole(newManagerId);
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.green),
+            child: const Text('Transfer'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -304,6 +413,42 @@ class _MembersScreenState extends State<MembersScreen> {
                               ],
                             ),
                           ),
+                          // --- ACTION BUTTONS (Tylko widoczne dla zalogowanego apartment managera) ---
+                          if (_isCurrentUserManager && _currentUserId != userId)
+                            PopupMenuButton<String>(
+                              onSelected: (value) {
+                                if (value == 'remove') {
+                                  _showRemoveMemberDialog(userId, name);
+                                } else if (value == 'transfer') {
+                                  _showTransferRoleDialog(userId, name);
+                                }
+                              },
+                              itemBuilder: (context) => [
+                                const PopupMenuItem(
+                                  value: 'transfer',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.admin_panel_settings, color: primaryColor, size: 18),
+                                      SizedBox(width: 10),
+                                      Text('Make Manager'),
+                                    ],
+                                  ),
+                                ),
+                                const PopupMenuDivider(),
+                                const PopupMenuItem(
+                                  value: 'remove',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.logout, color: Colors.red, size: 18),
+                                      SizedBox(width: 10),
+                                      Text('Remove'),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            )
+                          else
+                            const SizedBox.shrink(),
                         ],
                       ),
                     );

@@ -19,11 +19,16 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   final TextEditingController _confirmPasswordController =
       TextEditingController();
   final AuthService _authService = AuthService();
+  bool _isRegistering = false;
 
-  // sprawdzenie czy hasło i potwierdzenie hasła są takie same (LOGIKA BEZ ZMIAN)
+  // sprawdzenie czy hasło i potwierdzenie hasła są takie same
   void _handleRegistration() async {
+    if (_isRegistering) return;
+    setState(() => _isRegistering = true);
+
     if (_passwordController.text != _confirmPasswordController.text) {
       AuthService.showErrorSnackBar(context, 'Passwords do not match.');
+      setState(() => _isRegistering = false);
       return;
     }
 
@@ -33,6 +38,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         _surnameController.text.isEmpty ||
         _passwordController.text.isEmpty) {
       AuthService.showErrorSnackBar(context, 'Please fill in all fields.');
+      setState(() => _isRegistering = false);
       return;
     }
 
@@ -43,20 +49,12 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       _surnameController.text.trim(),
     );
 
+    setState(() => _isRegistering = false);
+
     if (errorMessage == null) {
-      // po udanej rejestracji przejdź do ekranu logowania
+      // po udanej rejestracji pokaż dialog z informacją o weryfikacji
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Registration successful! Please log in.'),
-            backgroundColor: Colors.green, // Sukces na zielono
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
-        );
+        _showVerificationDialog();
       }
     } else {
       // błąd rejestracji
@@ -64,6 +62,128 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         AuthService.showErrorSnackBar(context, errorMessage);
       }
     }
+  }
+
+  // Dialog informujący o konieczności weryfikacji emaila
+  void _showVerificationDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: backgroundColor,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: primaryColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.mark_email_unread_outlined,
+                  color: primaryColor,
+                  size: 40,
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Verify Your Email',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  fontFamily: 'StackSansNotch',
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'We\'ve sent a verification link to:',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: lightTextColor,
+                  fontFamily: appFontFamily,
+                ),
+              ),
+              const SizedBox(height: 10),
+              // wyróżniony adres email
+              Text(
+                _emailController.text.trim(),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                  fontFamily: appFontFamily,
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Check your inbox and click the link to activate your account.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: textColor,
+                  height: 1.5,
+                  fontFamily: appFontFamily,
+                ),
+              ),
+              const SizedBox(height: 24),
+              // info o spamie
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: surfaceColor,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 18, color: lightTextColor),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Don\'t see it? Check your spam folder.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: lightTextColor,
+                          fontFamily: appFontFamily,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  );
+                },
+                child: const Text('OK, Got it!'),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   // zwolnienie kontrolerów
@@ -90,11 +210,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               elevation: 0,
               floating: true,
               leading: SizedBox(height: 10),
-              // leading: IconButton(
-              //   icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              //       color: textColor),
-              //   onPressed: () => Navigator.pop(context),
-              // ),
             ),
 
             SliverPadding(

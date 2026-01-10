@@ -28,8 +28,9 @@ class _LoginScreenState extends State<LoginScreen> {
   // hasło: adminadmin
   // funkcja do obsługi logowania
   void _handleLogin() async {
-  if (_isLoggingIn) return;
-  setState(() => _isLoggingIn = true);
+    if (_isLoggingIn) return;
+    setState(() => _isLoggingIn = true);
+    
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
       AuthService.showErrorSnackBar(
           context, 'Please enter both email and password.');
@@ -43,19 +44,22 @@ class _LoginScreenState extends State<LoginScreen> {
       _passwordController.text,
     );
 
-  if (errorMessage != null) {
-    AuthService.showErrorSnackBar(context, errorMessage);
-    setState(() => _isLoggingIn = false);
-    return;
-  }
+    if (errorMessage != null) {
+      // Sprawdź czy to błąd niezweryfikowanego emaila
+      if (errorMessage.contains('verify your email')) {
+        _showResendVerificationDialog();
+      } else {
+        AuthService.showErrorSnackBar(context, errorMessage);
+      }
+      setState(() => _isLoggingIn = false);
+      return;
+    }
 
     if (errorMessage == null) {
-      // uwierzytelnienie sukces -> pobieranie roli i  grupy z Firestore
+      // uwierzytelnienie sukces -> pobieranie roli i grupy z Firestore
       try {
-        final userRole = await _firestoreService
-            .getCurrentUserRole(); // Zwraca 'admin' lub 'user'
-        final userProfile = await _firestoreService
-            .getCurrentUserProfile(); // Pobiera resztę danych (groupId)
+        final userRole = await _firestoreService.getCurrentUserRole();
+        final userProfile = await _firestoreService.getCurrentUserProfile();
 
         if (!mounted) {
           setState(() => _isLoggingIn = false);
@@ -108,12 +112,139 @@ class _LoginScreenState extends State<LoginScreen> {
         if (mounted) {
           AuthService.showErrorSnackBar(
               context, 'Login successful, but failed to load user data: $e');
-              setState(() => _isLoggingIn = false);
+          setState(() => _isLoggingIn = false);
         }
       }
     } else {
       setState(() => _isLoggingIn = false);
       if (mounted) {
+        AuthService.showErrorSnackBar(context, errorMessage);
+      }
+    }
+  }
+
+  // Dialog z opcją ponownego wysłania emaila weryfikacyjnego
+  void _showResendVerificationDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: backgroundColor,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.mark_email_read_outlined,
+                  color: Colors.amber,
+                  size: 40,
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Email Not Verified',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  fontFamily: 'StackSansNotch',
+                ),
+              ),
+            ],
+          ),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'You need to verify your email address before logging in.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: textColor,
+                  fontFamily: appFontFamily,
+                  height: 1.5,
+                ),
+              ),
+              SizedBox(height: 12),
+              Text(
+                'Please check your inbox for the verification link.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: lightTextColor,
+                  fontFamily: appFontFamily,
+                ),
+              ),
+            ],
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          actions: [
+            Column(
+              children: [
+                // ponowne wysłanie emaila - przycisk
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      Navigator.of(context).pop();
+                      _resendVerificationEmail();
+                    },
+                    child: const Text('Resend Email'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // anuluj - przycisk
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: TextButton.styleFrom(
+                      foregroundColor: lightTextColor,
+                      textStyle: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontFamily: appFontFamily,
+                      ),
+                    ),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Funkcja do ponownego wysłania emaila weryfikacyjnego
+  void _resendVerificationEmail() async {
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      AuthService.showErrorSnackBar(
+          context, 'Please enter your email and password.');
+      return;
+    }
+
+    final errorMessage = await _authService.resendVerificationEmail(
+      _emailController.text.trim(),
+      _passwordController.text,
+    );
+
+    if (mounted) {
+      if (errorMessage == null) {
+        AuthService.showSuccessSnackBar(
+          context,
+          'Verification email sent! Please check your inbox.',
+        );
+      } else {
         AuthService.showErrorSnackBar(context, errorMessage);
       }
     }
@@ -140,11 +271,6 @@ class _LoginScreenState extends State<LoginScreen> {
               elevation: 0,
               floating: true,
               leading: SizedBox(height: 10),
-              // leading: IconButton(
-              //   icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              //       color: textColor), // Nowocześniejsza strzałka
-              //   onPressed: () => Navigator.pop(context),
-              // ),
             ),
 
             SliverPadding(
@@ -241,25 +367,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
 
-                    // Link "Forgot Password"
-                    // Align(
-                    //   alignment: Alignment.centerRight,
-                    //   child: TextButton(
-                    //     onPressed: () {},
-                    //     style: TextButton.styleFrom(
-                    //       foregroundColor: lightTextColor,
-                    //     ),
-                    //     child: const Text('Forgot password?'),
-                    //   ),
-                    // ),
-
                     const SizedBox(height: 30),
 
                     // --- PRZYCISK LOGOWANIA ---
                     SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
-                          onPressed: _handleLogin, // blokada kliknięcia
+                          onPressed: _isLoggingIn ? null : _handleLogin, // blokada kliknięcia
                           style: ElevatedButton.styleFrom(
                             backgroundColor: primaryColor, // zawsze kolor tła
                           ),

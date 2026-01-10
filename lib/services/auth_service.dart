@@ -59,21 +59,21 @@ class AuthService {
       await user?.reload();
       user = _auth.currentUser;
 
+      // WERSJA DO TESTOWANIA - DO USUNIĘCIA PO WDROŻENIU !!!!!
       // sprawdzenie czy email został zweryfikowany
-      if (user != null && !user.emailVerified) {
-        await _auth.signOut(); // wylogowanie niezweryfikowanego użytkownika
-        return 'Please verify your email address before logging in. Check your inbox for the verification link.';
-      }
-
-      // PIERWSZE LOGOWANIE PO WERYFIKACJI - dodanie danych usera do Firestore
-      if (user != null && user.emailVerified) {
+      if (user != null) {
         final userDoc = await _firestore.collection('users').doc(user.uid).get();
-        
-        // jeśli użytkownik nie istnieje w bazie, dodaj go (pierwsze logowanie)
+        final userData = userDoc.data();
+        bool isVerifiedInDb = userDoc.exists && userData?['emailVerified'] == true;
+        if (!user.emailVerified && !isVerifiedInDb) {
+          await _auth.signOut(); // wylogowanie niezweryfikowanego użytkownika
+          return 'Please verify your email address before logging in. Check your inbox for the verification link.';
+        }
+
         if (!userDoc.exists) {
-          // pobranie imienia i nazwiska z displayName (zapisane podczas rejestracji)
           String displayName = user.displayName ?? '';
           List<String> nameParts = displayName.split(' ');
+        
           String firstName = nameParts.isNotEmpty ? nameParts[0] : 'User';
           String lastName = nameParts.length > 1 ? nameParts[1] : '';
 
@@ -82,17 +82,46 @@ class AuthService {
             'lastName': lastName,
             'email': user.email,
             'role': UserRole.user,
-            'groupId': 'default_group'
-          });
-
-          await user.updateDisplayName('$firstName $lastName');
-        } else {
-          // aktualizacja statusu weryfikacji dla istniejących użytkowników
-          await _firestore.collection('users').doc(user.uid).update({
+            'groupId': 'default_group',
             'emailVerified': true,
           });
+        } else {
+          // AKTUALIZACJA DLA ISTNIEJĄCYCH (STARYCH) KONT
+          Map<String, dynamic> updates = {'emailVerified': true};
+          await _firestore.collection('users').doc(user.uid).update(updates);
         }
       }
+
+      // FINALNA WERSJA - NIE USUWAĆ !!!!!
+      // // PIERWSZE LOGOWANIE PO WERYFIKACJI - dodanie danych usera do Firestore
+      // if (user != null && user.emailVerified) {
+      //   final userDoc = await _firestore.collection('users').doc(user.uid).get();
+        
+      //   // jeśli użytkownik nie istnieje w bazie, dodaj go (pierwsze logowanie)
+      //   if (!userDoc.exists) {
+      //     // pobranie imienia i nazwiska z displayName (zapisane podczas rejestracji)
+      //     String displayName = user.displayName ?? '';
+      //     List<String> nameParts = displayName.split(' ');
+      //     String firstName = nameParts.isNotEmpty ? nameParts[0] : 'User';
+      //     String lastName = nameParts.length > 1 ? nameParts[1] : '';
+
+      //     await _firestore.collection('users').doc(user.uid).set({
+      //       'firstName': firstName,
+      //       'lastName': lastName,
+      //       'email': user.email,
+      //       'role': UserRole.user,
+      //       'groupId': 'default_group',
+      //       'emailVerified': true
+      //     });
+
+      //     await user.updateDisplayName('$firstName $lastName');
+      //   } else {
+      //     // aktualizacja statusu weryfikacji dla istniejących użytkowników
+      //     await _firestore.collection('users').doc(user.uid).update({
+      //       'emailVerified': true,
+      //     });
+      //   }
+      // }
 
       return null;
     } on FirebaseAuthException catch (e) {

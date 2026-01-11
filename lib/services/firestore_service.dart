@@ -553,13 +553,6 @@ class FirestoreService {
     });
   }
 
-  // zmiana statusu grupy (admin)
-  Future<void> updateGroupStatus(String groupId, String newStatus) async {
-    await _firestore.collection('groups').doc(groupId).update({
-      'status': newStatus,
-    });
-  }
-
   // pobieranie listy członków grupy (admin)
   Stream<List<Map<String, dynamic>>> getGroupMembersStream(String groupId) {
     // groupId = ID
@@ -601,11 +594,6 @@ class FirestoreService {
     });
   }
 
-  // usuwanie dokumentu użytkownika (admin)
-  Future<void> deleteUserDocument(String userId) async {
-    await _firestore.collection('users').doc(userId).delete();
-  }
-
   // usuawanie grupy (admin)
   Future<void> deleteGroup(String groupId) async {
     // przeniesienie wszystkich użytkowników z tej grupy (lub groupId na null i rolę na 'user')
@@ -626,6 +614,100 @@ class FirestoreService {
     batch.delete(_firestore.collection('groups').doc(groupId));
 
     await batch.commit();
+  }
+
+  // Pobieranie wszystkich użytkowników
+  Stream<List<Map<String, dynamic>>> getAllUsersStream() {
+    return _firestore.collection('users').snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        data['uid'] = doc.id;
+        // Pełne imię
+        data['name'] =
+            '${data['firstName'] ?? ''} ${data['lastName'] ?? ''}'.trim();
+        if (data['name'].isEmpty) data['name'] = 'Unknown User';
+        // Domyślna rola
+        if (!data.containsKey('role')) data['role'] = UserRole.user;
+        return data;
+      }).toList();
+    });
+  }
+
+  // Edycja danych użytkownika (admin)
+  Future<void> updateUserData(
+    String userId, {
+    String? firstName,
+    String? lastName,
+    String? email,
+  }) async {
+    Map<String, dynamic> updates = {};
+
+    if (firstName != null) updates['firstName'] = firstName;
+    if (lastName != null) updates['lastName'] = lastName;
+    if (email != null) updates['email'] = email;
+
+    if (updates.isEmpty) return;
+
+    await _firestore.collection('users').doc(userId).update(updates);
+  }
+
+  // Usuwanie użytkownika z bazy danych (admin), ale nie konta Firebase Auth
+  Future<void> deleteUser(String userId) async {
+    try {
+      final userDoc = await _firestore.collection('users').doc(userId).get();
+      if (!userDoc.exists) return;
+
+      final userData = userDoc.data()!;
+      final userGroupId = userData['groupId'];
+      final userRole = userData['role'];
+
+      // Przypisanie roli apartment manager innemu userowi po usunieciu
+      if (userRole == UserRole.apartmentManager &&
+          userGroupId != 'default_group') {
+        final otherMembers = await _firestore
+            .collection('users')
+            .where('groupId', isEqualTo: userGroupId)
+            .get();
+
+        final others = otherMembers.docs.where((d) => d.id != userId).toList();
+        if (others.isNotEmpty) {
+          others.shuffle();
+          await _firestore.collection('users').doc(others.first.id).update({
+            'role': UserRole.apartmentManager,
+          });
+        }
+      }
+
+      // Usunięcie wszystkich powiązanych danych usera
+      final batch = _firestore.batch();
+
+      // Usunięcie zadań utworzonych przez usera
+      final tasks = await _firestore
+          .collection('tasks')
+          .where('assignedTo', isEqualTo: userId)
+          .get();
+      for (var doc in tasks.docs) {
+        batch.delete(doc.reference);
+      }
+
+      // Usunięcie ogłoszeń utworzonych przez usera
+      final announcements = await _firestore
+          .collection('announcements')
+          .where('createdById', isEqualTo: userId)
+          .get();
+      for (var doc in announcements.docs) {
+        batch.delete(doc.reference);
+      }
+
+      // Usunięcie dokumentu usera
+      batch.delete(_firestore.collection('users').doc(userId));
+
+      await batch.commit();
+      debugPrint('User $userId deleted successfully');
+    } catch (e) {
+      debugPrint('deleteUser error: $e');
+      rethrow;
+    }
   }
 
   // --- WKLEJ NA SAMYM DOLE KLASY FirestoreService ---

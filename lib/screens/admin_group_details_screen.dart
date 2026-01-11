@@ -30,37 +30,24 @@ class _AdminGroupDetailsScreenState extends State<AdminGroupDetailsScreen> {
 
   // --- FUNKCJE FIRESTORE - ZARZĄDZANIE GRUPĄ ---
 
-  // Zmiana statusu grupy
-  void _changeGroupStatus(String newStatus) async {
-    try {
-      await _firestoreService.updateGroupStatus(_groupId, newStatus);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Group status changed to: $newStatus"),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
-        );
-      }
-    }
-  }
-
   // Usunięcie grupy i resetowanie użytkowników (Admin CRUD)
   void _deleteGroup() async {
     final bool confirmed = await showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text("Confirm Deletion"),
-        content: Text("Are you sure you want to permanently delete group '${widget.group['name'] ?? _groupId}'? All member roles will be reset."),
+        content: Text(
+          "Are you sure you want to permanently delete group '${widget.group['name'] ?? _groupId}'? All members will be moved to 'No Group' and their roles will be reset.",
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel")),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), style: ElevatedButton.styleFrom(backgroundColor: Colors.red), child: const Text("Delete")),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text("Delete"),
+          ),
         ],
       ),
     ) ?? false;
@@ -72,19 +59,100 @@ class _AdminGroupDetailsScreenState extends State<AdminGroupDetailsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text("Group successfully deleted!"),
-              backgroundColor: Colors.green),
+            content: Text("Group successfully deleted!"),
+            backgroundColor: Colors.green,
+          ),
         );
-        // Po usunięciu wracamy do dashboardu
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error deleting group: $e"), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text("Error deleting group: $e"),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
+  }
+
+  // Zmiana nazwy grupy
+  void _showEditGroupNameDialog() {
+    final nameController = TextEditingController(
+      text: widget.group['name'] ?? '',
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          "Edit Group Name",
+          style: TextStyle(
+            fontFamily: 'StackSansNotch',
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: TextField(
+          controller: nameController,
+          decoration: const InputDecoration(
+            labelText: 'Group Name',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel", style: TextStyle(color: lightTextColor)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final newName = nameController.text.trim();
+              if (newName.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Name cannot be empty")),
+                );
+                return;
+              }
+
+              try {
+                await FirebaseFirestore.instance
+                    .collection('groups')
+                    .doc(_groupId)
+                    .update({'name': newName});
+                
+                if (mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Group name updated!"),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text("Error: $e"),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
   }
 
   // --- FUNKCJE FIRESTORE - ZARZĄDZANIE CZŁONKAMI GRUPY ---
@@ -122,16 +190,14 @@ class _AdminGroupDetailsScreenState extends State<AdminGroupDetailsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Error changing role: $e"),
-          ),
+          SnackBar(content: Text("Error changing role: $e")),
         );
       }
     }
   }
 
-  // isunięcie użytkownika z grupy (admin CRUD)
-  void _removeUserFromGroup(String userId) async {
+  // Usunięcie użytkownika z grupy (admin CRUD)
+  void _removeUserFromGroup(String userId, String userName) async {
     // admin nie może usunąć siebie z grupy
     if (userId == _currentAdminUid) {
       if (mounted) {
@@ -143,14 +209,99 @@ class _AdminGroupDetailsScreenState extends State<AdminGroupDetailsScreen> {
       }
       return;
     }
-    
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text("Remove Member"),
+        content: Text(
+          "Remove '$userName' from this group? They will be moved to 'No Group' and their role will be reset to User.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+            child: const Text("Remove"),
+          ),
+        ],
+      ),
+    ) ?? false;
+
+    if (!confirmed) return;
+
     try {
-      // wywołanie metody z firestore_service
       await _firestoreService.removeUserFromGroup(userId);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("User removed from the group and their role was reset."),
+            content: Text("User removed from the group."),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error removing user: $e")),
+        );
+      }
+    }
+  }
+
+  // Całkowite usunięcie użytkownika z bazy danych
+  void _deleteUser(String userId, String userName) async {
+    // Admin nie może usunąć siebie
+    if (userId == _currentAdminUid) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("You cannot delete yourself!"),
+          ),
+        );
+      }
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text("Delete User"),
+        content: Text(
+          "Permanently delete user '$userName' from the database? This action cannot be undone and will remove all their data.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text("Delete Permanently"),
+          ),
+        ],
+      ),
+    ) ?? false;
+
+    if (!confirmed) return;
+
+    try {
+      await _firestoreService.deleteUser(userId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("User deleted permanently."),
+            backgroundColor: Colors.green,
           ),
         );
       }
@@ -158,14 +309,116 @@ class _AdminGroupDetailsScreenState extends State<AdminGroupDetailsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Error removing user: $e"),
+            content: Text("Error deleting user: $e"),
+            backgroundColor: Colors.red,
           ),
         );
       }
     }
   }
 
-  // --- NAPRAWIONA FUNKCJA DODAWANIA OGŁOSZENIA ---
+  // Edycja danych użytkownika
+  void _editUser(Map<String, dynamic> user) {
+    final firstNameController = TextEditingController(
+      text: user['firstName'] ?? '',
+    );
+    final lastNameController = TextEditingController(
+      text: user['lastName'] ?? '',
+    );
+    final emailController = TextEditingController(
+      text: user['email'] ?? '',
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          "Edit User",
+          style: TextStyle(
+            fontFamily: 'StackSansNotch',
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: firstNameController,
+                decoration: const InputDecoration(
+                  labelText: 'First Name',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: lastNameController,
+                decoration: const InputDecoration(
+                  labelText: 'Last Name',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: emailController,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.emailAddress,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel", style: TextStyle(color: lightTextColor)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                await _firestoreService.updateUserData(
+                  user['uid'],
+                  firstName: firstNameController.text,
+                  lastName: lastNameController.text,
+                  email: emailController.text,
+                );
+                if (mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("User updated successfully"),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text("Error: $e"),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- FUNKCJA DODAWANIA OGŁOSZENIA ---
   void _postAnnouncement(String title, String message) async {
     if (title.isEmpty || message.isEmpty) return;
 
@@ -275,308 +528,277 @@ class _AdminGroupDetailsScreenState extends State<AdminGroupDetailsScreen> {
   Widget build(BuildContext context) {
     // StreamBuilder dla dokumentu grupy (status na żywo)
     return StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('groups')
-            .doc(_groupId)
-            .snapshots(),
-        builder: (context, groupSnapshot) {
-          if (!groupSnapshot.hasData) {
-            return const Scaffold(
-                backgroundColor: backgroundColor,
-                body: Center(child: CircularProgressIndicator()));
-          }
-
-          final groupData = groupSnapshot.data!.data() as Map<String, dynamic>;
-          final groupName = groupData['name'] ?? 'Unknown Group';
-          final groupStatus = groupData['status'] ?? 'Active';
-          final groupCreated = _formatTimestamp(groupData['createdAt']);
-
-          return Scaffold(
+      stream: FirebaseFirestore.instance
+          .collection('groups')
+          .doc(_groupId)
+          .snapshots(),
+      builder: (context, groupSnapshot) {
+        if (!groupSnapshot.hasData) {
+          return const Scaffold(
             backgroundColor: backgroundColor,
-            appBar: AppBar(
-              backgroundColor: backgroundColor,
-              surfaceTintColor: Colors.transparent,
-              elevation: 0,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                    color: textColor),
-                onPressed: () => Navigator.pop(context),
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        final groupData = groupSnapshot.data!.data() as Map<String, dynamic>;
+        final groupName = groupData['name'] ?? 'Unknown Group';
+
+        return Scaffold(
+          backgroundColor: backgroundColor,
+          appBar: AppBar(
+            backgroundColor: backgroundColor,
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
+            title: Text(
+              groupName,
+              style: const TextStyle(
+                color: textColor,
+                fontFamily: 'StackSansNotch',
+                fontWeight: FontWeight.w900,
+                fontSize: 18,
               ),
-              title: Text(
-                groupName,
-                style: const TextStyle(
-                  color: textColor,
-                  fontFamily: 'StackSansNotch',
-                  fontWeight: FontWeight.w900,
-                  fontSize: 18,
-                ),
-              ),
-              centerTitle: true,
-              actions: [
-                // --- MENU ZARZĄDZANIA GRUPĄ ---
-                PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert_rounded, color: textColor),
-                  color: Colors.white,
-                  surfaceTintColor: Colors.transparent,
-                  onSelected: (value) {
-                    if (value == 'delete') {
-                      _deleteGroup(); // wywołanie metody usuwania
-                    } else {
-                      _changeGroupStatus(value);
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: 'Active',
-                      child: Row(children: [
-                        Icon(Icons.check_circle, color: Colors.green, size: 18),
+            ),
+            centerTitle: true,
+            actions: [
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert_rounded, color: textColor),
+                color: Colors.white,
+                onSelected: (value) {
+                  if (value == 'delete') {
+                    _deleteGroup();
+                  } else if (value == 'edit_name') {
+                    _showEditGroupNameDialog();
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'edit_name',
+                    child: Row(
+                      children: [
+                        Icon(Icons.edit, color: primaryColor, size: 18),
                         SizedBox(width: 8),
-                        Text('Set Active')
-                      ]),
+                        Text('Edit Name'),
+                      ],
                     ),
-                    const PopupMenuItem(
-                      value: 'Blocked',
-                      child: Row(children: [
-                        Icon(Icons.block, color: Colors.red, size: 18),
-                        SizedBox(width: 8),
-                        Text('Block Group')
-                      ]),
-                    ),
-                    const PopupMenuItem(
-                      value: 'Flagged',
-                      child: Row(children: [
-                        Icon(Icons.flag, color: Colors.orange, size: 18),
-                        SizedBox(width: 8),
-                        Text('Flag Group')
-                      ]),
-                    ),
-                    const PopupMenuDivider(),
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: Row(children: [
+                  ),
+                  const PopupMenuDivider(),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
                         Icon(Icons.delete_forever, color: Colors.red, size: 18),
                         SizedBox(width: 8),
-                        Text('Delete Group',
-                            style: TextStyle(color: Colors.red))
-                      ]),
+                        Text('Delete Group', style: TextStyle(color: Colors.red)),
+                      ],
                     ),
-                  ],
-                ),
-              ],
-            ),
-            body: SingleChildScrollView(
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // --- BANER PRYWATNOŚCI (bez zmian) ---
-                    Container(
-                      width: double.infinity,
+                  ),
+                ],
+              )
+            ],
+          ),
+          body: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Baner prywatności
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                    ),
+                    child: const Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.lock_outline_rounded,
+                          color: Colors.orange,
+                          size: 20,
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Privacy Protected",
+                                style: TextStyle(
+                                  color: Colors.orange,
+                                  fontWeight: FontWeight.bold,
+                                  fontFamily: appFontFamily,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                "Private data (expenses, tasks, lists) are hidden from admin view.",
+                                style: TextStyle(
+                                  color: Colors.orange,
+                                  fontSize: 12,
+                                  fontFamily: appFontFamily,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+
+                  // Admin Actions
+                  const Text(
+                    'Admin Actions',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: textColor,
+                      fontFamily: appFontFamily,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  GestureDetector(
+                    onTap: _showPostAnnouncementDialog,
+                    child: Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.orange.withOpacity(0.1),
+                        color: primaryColor,
                         borderRadius: BorderRadius.circular(16),
-                        border:
-                            Border.all(color: Colors.orange.withOpacity(0.3)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: primaryColor.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.lock_outline_rounded,
-                              color: Colors.orange, size: 20),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: const [
-                                Text(
-                                  "Privacy Protected",
-                                  style: TextStyle(
-                                    color: Colors.orange,
-                                    fontWeight: FontWeight.bold,
-                                    fontFamily: appFontFamily,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                                SizedBox(height: 4),
-                                Text(
-                                  "Private data (expenses, tasks, lists) are hidden from admin view.",
-                                  style: TextStyle(
-                                    color: Colors.orange,
-                                    fontSize: 12,
-                                    fontFamily: appFontFamily,
-                                    height: 1.4,
-                                  ),
-                                ),
-                              ],
+                          Icon(Icons.campaign_rounded, color: Colors.white),
+                          SizedBox(width: 10),
+                          Text(
+                            "Post Official Announcement",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: appFontFamily,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 30),
+                  ),
+                  const SizedBox(height: 30),
 
-                    // --- ADMIN ACTIONS ---
-                    const Text(
-                      'Admin Actions',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
-                        fontFamily: appFontFamily,
-                      ),
+                  // Szczegóły grupy
+                  const Text(
+                    'Details',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: textColor,
+                      fontFamily: appFontFamily,
                     ),
-                    const SizedBox(height: 12),
-                    GestureDetector(
-                      onTap: _showPostAnnouncementDialog,
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                            color: primaryColor,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                  color: primaryColor.withOpacity(0.3),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4))
-                            ]),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            Icon(Icons.campaign_rounded, color: Colors.white),
-                            SizedBox(width: 10),
-                            Text("Post Official Announcement",
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _InfoCard(
+                          label: "Group ID",
+                          value: _groupId,
+                          icon: Icons.fingerprint_rounded,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                    ],
+                  ),
+                  const SizedBox(height: 40),
+
+                  // Lista członków
+                  StreamBuilder<List<Map<String, dynamic>>>(
+                    stream: _firestoreService.getGroupMembersStream(_groupId),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      if (snapshot.hasError) {
+                        return Text('Error loading members: ${snapshot.error}');
+                      }
+
+                      final members = snapshot.data ?? [];
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Members',
                                 style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontFamily: appFontFamily)),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 30),
-
-                    // --- SZCZEGÓŁY GRUPY ---
-                    const Text(
-                      'Details',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
-                        fontFamily: appFontFamily,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _InfoCard(
-                            label: "Group ID",
-                            value: _groupId,
-                            icon: Icons.fingerprint_rounded,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _InfoCard(
-                            label: "Status",
-                            value: groupStatus,
-                            icon: Icons.shield_outlined,
-                            valueColor: groupStatus == 'Blocked'
-                                ? Colors.red
-                                : (groupStatus == 'Flagged'
-                                    ? Colors.orange
-                                    : Colors.green),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    _InfoCard(
-                      label: "Created at",
-                      value: groupCreated,
-                      icon: Icons.calendar_today_rounded,
-                      isFullWidth: true,
-                    ),
-
-                    const SizedBox(height: 40),
-
-                    // --- LISTA CZŁONKÓW (StreamBuilder) ---
-                    StreamBuilder<List<Map<String, dynamic>>>(
-                      stream: _firestoreService.getGroupMembersStream(_groupId),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return const Center(
-                              child: CircularProgressIndicator());
-                        }
-                        if (snapshot.hasError) {
-                          return Text(
-                              'Error loading members: ${snapshot.error}');
-                        }
-
-                        final members = snapshot.data ?? [];
-
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text(
-                                  'Members',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: textColor,
-                                    fontFamily: appFontFamily,
-                                  ),
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor,
+                                  fontFamily: appFontFamily,
                                 ),
-                                Text(
-                                  '${members.length} total',
-                                  style: const TextStyle(
-                                    color: lightTextColor,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                              ),
+                              Text(
+                                '${members.length} total',
+                                style: const TextStyle(
+                                  color: lightTextColor,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            if (members.isEmpty)
-                              const Text("No members in this group."),
-                            ListView.separated(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: members.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 12),
-                              itemBuilder: (context, index) {
-                                final user = members[index];
-                                return _MemberTile(
-                                  user: user,
-                                  onToggleAdmin: () => _toggleAdminRole(
-                                      user['uid'], user['role']),
-                                  onRemoveUser: () => _removeUserFromGroup(user['uid']),
-                                );
-                              },
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-
-                    const SizedBox(height: 40),
-                  ],
-                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          if (members.isEmpty)
+                            const Text("No members in this group."),
+                          ListView.separated(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: members.length,
+                            separatorBuilder: (_, __) => const SizedBox(height: 12),
+                            itemBuilder: (context, index) {
+                              final user = members[index];
+                              return _MemberTile(
+                                user: user,
+                                onToggleAdmin: () => _toggleAdminRole(
+                                  user['uid'],
+                                  user['role'],
+                                ),
+                                onRemoveUser: () => _removeUserFromGroup(
+                                  user['uid'],
+                                  user['name'],
+                                ),
+                                onDeleteUser: () => _deleteUser(
+                                  user['uid'],
+                                  user['name'],
+                                ),
+                                onEditUser: () => _editUser(user),
+                              );
+                            },
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 40),
+                ],
               ),
             ),
-          );
-        });
+          ),
+        );
+      },
+    );
   }
 }
 
@@ -644,11 +866,15 @@ class _MemberTile extends StatelessWidget {
   final Map<String, dynamic> user; // Zmienione na dynamiczne z Firebase
   final VoidCallback onToggleAdmin;
   final VoidCallback onRemoveUser;
+  final VoidCallback onDeleteUser;
+  final VoidCallback onEditUser;
 
   const _MemberTile({
     required this.user,
     required this.onToggleAdmin,
     required this.onRemoveUser,
+    required this.onDeleteUser,
+    required this.onEditUser,
   });
 
   @override

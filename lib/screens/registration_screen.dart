@@ -26,18 +26,31 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     if (_isRegistering) return;
     setState(() => _isRegistering = true);
 
-    if (_passwordController.text != _confirmPasswordController.text) {
-      AuthService.showErrorSnackBar(context, 'Passwords do not match.');
+    String password = _passwordController.text;
+
+    // Walidacja pustych pól
+    if (_emailController.text.isEmpty ||
+        _nameController.text.isEmpty ||
+        _surnameController.text.isEmpty ||
+        password.isEmpty) {
+      AuthService.showErrorSnackBar(context, 'Please fill in all fields.');
       setState(() => _isRegistering = false);
       return;
     }
 
-    // walidacja pustych pól
-    if (_emailController.text.isEmpty ||
-        _nameController.text.isEmpty ||
-        _surnameController.text.isEmpty ||
-        _passwordController.text.isEmpty) {
-      AuthService.showErrorSnackBar(context, 'Please fill in all fields.');
+    final passwordRegex = RegExp(r'^(?=.*[A-Z])(?=.*\d)(?=.*[#$@!%&*?]).{9,}$');
+
+    if (!passwordRegex.hasMatch(password)) {
+      AuthService.showErrorSnackBar(
+        context, 
+        'Password must be at least 9 characters long, include an uppercase letter, a digit, and a special character.'
+      );
+      setState(() => _isRegistering = false);
+      return;
+    }
+
+    if (_passwordController.text != _confirmPasswordController.text) {
+      AuthService.showErrorSnackBar(context, 'Passwords do not match.');
       setState(() => _isRegistering = false);
       return;
     }
@@ -330,7 +343,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       controller: _passwordController,
                       obscureText: true,
                       decoration: const InputDecoration(
-                        hintText: 'Create a password',
+                        hintText: 'Create a password (min. 9 characters, 1 uppercase, 1 digit, 1 special char)',
                         prefixIcon: Icon(Icons.lock_outline_rounded,
                             color: lightTextColor),
                       ),

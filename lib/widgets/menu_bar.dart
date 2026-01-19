@@ -94,12 +94,15 @@ void _showExitGroupDialog(BuildContext context) {
           return FutureBuilder<Map<String, dynamic>>(
             future: _firestoreService.getExitSummary(),
             builder: (ctx, snapshot) {
-              final summaryData = snapshot.data ?? {'debtAmount': 0.0, 'incompleteTasks': 0, 'isManager': false};
+              final summaryData = snapshot.data ?? {'debtAmount': 0.0, 'incompleteTasks': 0, 'pendingSettlements': 0, 'isManager': false};
               final debtAmount = (summaryData['debtAmount'] as num?)?.toDouble() ?? 0.0;
               final incompleteTasks = summaryData['incompleteTasks'] as int? ?? 0;
+              final pendingSettlements = summaryData['pendingSettlements'] as int? ?? 0;
               final isManager = summaryData['isManager'] as bool? ?? false;
               final hasDebts = debtAmount > 0.01;
               final hasTasks = incompleteTasks > 0;
+              final hasPendingSettlements = pendingSettlements > 0;
+              final canExit = !hasPendingSettlements; // Nie możesz wyjść jeśli są oczekujące rozliczenia
 
               return AlertDialog(
                 shape: RoundedRectangleBorder(
@@ -120,8 +123,56 @@ void _showExitGroupDialog(BuildContext context) {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // GŁÓWNY KOMUNIKAT Z CAŁKOWITYM DŁUGIEM
-                      if (hasDebts) ...[
+                      // BŁĄD: Oczekujące rozliczenia - BLOKUJE WYJŚCIE!
+                      if (hasPendingSettlements) ...[
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.red.withOpacity(0.4), width: 2),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Row(
+                                children: [
+                                  Icon(Icons.error_outline, color: Colors.red, size: 24),
+                                  SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      'Cannot exit - settlements pending!',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.red,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'You have $pendingSettlements settlement(s) waiting for confirmation.',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.red,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'You must confirm or reject all pending settlements before you can exit the group.',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.red,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ] else if (hasDebts) ...[
+                        // GŁÓWNY KOMUNIKAT Z CAŁKOWITYM DŁUGIEM
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
@@ -243,7 +294,7 @@ void _showExitGroupDialog(BuildContext context) {
                         ),
                       ],
 
-                      if (!hasDebts && !hasTasks && !isManager) ...[
+                      if (!hasDebts && !hasTasks && !isManager && !hasPendingSettlements) ...[
                         const SizedBox(height: 12),
                         const Text(
                           'You have no active debts or incomplete tasks.',
@@ -259,7 +310,7 @@ void _showExitGroupDialog(BuildContext context) {
                     child: const Text('Cancel'),
                   ),
                   TextButton(
-                    onPressed: isProcessing
+                    onPressed: (isProcessing || !canExit)
                         ? null
                         : () async {
                             setState(() => isProcessing = true);
@@ -275,7 +326,9 @@ void _showExitGroupDialog(BuildContext context) {
                               debugPrint('Error exiting group: $e');
                             }
                           },
-                    style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+                    style: TextButton.styleFrom(
+                      foregroundColor: canExit ? Colors.redAccent : Colors.grey,
+                    ),
                     child: const Text('Yes, Exit'),
                   ),
                 ],

@@ -10,6 +10,7 @@ import 'announcements_screen.dart';
 import '../utils/split_bill_logic.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'home_screen.dart';
+import 'package:flutter/services.dart';
 
 class ExpensesScreen extends StatefulWidget {
   const ExpensesScreen({super.key});
@@ -169,7 +170,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     });
   }
 
-  Widget _buildDebtCard(Debt debt, String otherName, {required bool isOwedByMe, bool isPending = false, String? pendingSettlementId}) {
+  Widget _buildDebtCard(Debt debt, String otherName, {required bool isOwedByMe, bool isPending = false, String? pendingSettlementId, double? pendingAmount}) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       padding: const EdgeInsets.all(16),
@@ -182,23 +183,34 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(isOwedByMe ? "You owe $otherName" : "$otherName owes you", style: const TextStyle(color: lightTextColor, fontSize: 12, fontFamily: appFontFamily)),
-                Text("${debt.amount.toStringAsFixed(2)} PLN", style: TextStyle(color: isOwedByMe ? Colors.red : Colors.green, fontWeight: FontWeight.bold, fontSize: 18, fontFamily: appFontFamily)),
-              ]),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(isOwedByMe ? "You owe $otherName" : "$otherName owes you", style: const TextStyle(color: lightTextColor, fontSize: 12, fontFamily: appFontFamily), overflow: TextOverflow.ellipsis),
+                  Text("${(pendingAmount ?? debt.amount).toStringAsFixed(2)} PLN", style: TextStyle(color: isOwedByMe ? Colors.red : Colors.green, fontWeight: FontWeight.bold, fontSize: 18, fontFamily: appFontFamily)),
+                ]),
+              ),
+              const SizedBox(width: 12),
               
-              if (isOwedByMe) 
-                isPending 
-                  ? Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(color: Colors.orange.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
-                      child: const Text("Waiting...", style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 12)),
-                    )
-                  : ElevatedButton(
-                      onPressed: () => _handleSettleUp(debt.toUser, debt.amount),
-                      style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
-                      child: const Text("Settle Up", style: TextStyle(color: Colors.white)),
-                    )
+              if (isOwedByMe)
+                Flexible(
+                  child: isPending
+                      ? Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(color: Colors.orange.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
+                          child: Text(
+                            pendingAmount != null
+                                ? 'Waiting (${pendingAmount.toStringAsFixed(2)} PLN)'
+                                : 'Waiting...',
+                            style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 12),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        )
+                      : ElevatedButton(
+                          onPressed: () => _handleSettleUp(debt.toUser, debt.amount),
+                          style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
+                          child: const Text("Settle Up", style: TextStyle(color: Colors.white), overflow: TextOverflow.ellipsis),
+                        )
+                )
               else 
                 if (pendingSettlementId == null || pendingSettlementId.isEmpty)
                    const SizedBox()
@@ -222,7 +234,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                       ),
                       const SizedBox(width: 10),
                       InkWell(
-                        onTap: () => _firestoreService.confirmSettlement(pendingSettlementId, debt.fromUser, debt.amount),
+                        onTap: () => _firestoreService.confirmSettlement(pendingSettlementId, debt.fromUser, pendingAmount ?? debt.amount),
                         child: const Padding(padding: EdgeInsets.all(8.0), child: Icon(Icons.check, color: Colors.green, size: 28)),
                       ),
                     ],
@@ -518,30 +530,34 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Your Balance',
-                style: TextStyle(
-                  color: lightTextColor, // Ciemniejszy szary dla tekstu
-                  fontWeight: FontWeight.w500,
-                  fontSize: 14,
-                  fontFamily: appFontFamily,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Your Balance',
+                  style: TextStyle(
+                    color: lightTextColor, // Ciemniejszy szary dla tekstu
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                    fontFamily: appFontFamily,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${_myNetBalance >= 0 ? '+' : ''}${_myNetBalance.toStringAsFixed(2)} PLN',
-                style: const TextStyle(
-                  color: textColor, // Ciemny tekst (czarny)
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: appFontFamily,
-                  letterSpacing: -0.5,
+                const SizedBox(height: 4),
+                Text(
+                  '${_myNetBalance >= 0 ? '+' : ''}${_myNetBalance.toStringAsFixed(2)} PLN',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: textColor, // Ciemny tekst (czarny)
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: appFontFamily,
+                    letterSpacing: -0.5,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           // Przycisk "+" (Action Button)
           Material(
@@ -584,6 +600,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   }
 
   /// Formularz dodawania nowego wydatku - Czysty styl
+  /// Formularz dodawania nowego wydatku - Czysty styl (Z NAPRAWIONYM PRZYCISKIEM I KWOTĄ)
   Widget _buildNewExpenseForm() {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -601,6 +618,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min, // Ważne: zajmuje tyle miejsca ile trzeba
         children: [
           const Text("New Expense",
               style: TextStyle(
@@ -610,27 +628,38 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   fontFamily: appFontFamily)),
           const SizedBox(height: 16),
 
+          // --- POLE OPISU ---
           TextField(
             controller: _descriptionController,
             decoration: const InputDecoration(
               hintText: 'What is this for?',
               prefixIcon:
                   Icon(Icons.description_outlined, color: lightTextColor),
+              counterText: "", // Ukrywa licznik znaków jeśli by się pojawił
             ),
+            maxLength: 50, // Limit długości opisu
             style: const TextStyle(color: textColor, fontFamily: appFontFamily),
           ),
           const SizedBox(height: 12),
 
+          // --- POLE KWOTY (NAPRAWIONE) ---
           TextField(
             controller: _amountController,
+            // 1. Ograniczenie do 7 znaków (np. 9999.99) - zapobiega crashom algorytmu
+            maxLength: 7, 
             decoration: const InputDecoration(
               hintText: 'Amount',
               prefixIcon:
                   Icon(Icons.attach_money_rounded, color: lightTextColor),
               suffixText: 'PLN',
+              counterText: "", // Ukrywamy licznik "0/7" dla czystego wyglądu
             ),
             style: const TextStyle(color: textColor, fontFamily: appFontFamily),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            // 2. Formatowanie: tylko cyfry i kropka, max 2 miejsca po przecinku
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+            ],
           ),
           const SizedBox(height: 16),
 
@@ -642,66 +671,75 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   fontFamily: appFontFamily)),
           const SizedBox(height: 8),
 
-          // Lista współlokatorów
-          Column(
-            children: _roomies.map((user) {
-              final userId = user['id']!;
-              final userName = user['name']!;
-              final isSelected = _splitWith[userId] == 'true';
+          // --- LISTA WSPÓŁLOKATORÓW (PRZEWIJANA WEWNĄTRZ) ---
+          // To naprawia uciekający przycisk. Lista ma max 150px wysokości.
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 150),
+            child: SingleChildScrollView(
+              child: Column(
+                children: _roomies.map((user) {
+                  final userId = user['id']!;
+                  final userName = user['name']!;
+                  final isSelected = _splitWith[userId] == 'true';
 
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8.0),
-                child: InkWell(
-                  onTap: () {
-                    setState(() {
-                      if (userId != _currentUserId) {
-                        _splitWith[userId] = isSelected ? 'false' : 'true';
-                      }
-                    });
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? primaryColor.withOpacity(0.05)
-                          : surfaceColor,
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: InkWell(
+                      onTap: () {
+                        setState(() {
+                          if (userId != _currentUserId) {
+                            _splitWith[userId] = isSelected ? 'false' : 'true';
+                          }
+                        });
+                      },
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isSelected ? primaryColor : Colors.transparent,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          isSelected
-                              ? Icons.check_circle_rounded
-                              : Icons.circle_outlined,
-                          color: isSelected ? primaryColor : lightTextColor,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          userName,
-                          style: TextStyle(
-                            color: textColor,
-                            fontWeight: isSelected
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-                            fontFamily: appFontFamily,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? primaryColor.withOpacity(0.05)
+                              : surfaceColor,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isSelected ? primaryColor : Colors.transparent,
                           ),
                         ),
-                      ],
+                        child: Row(
+                          children: [
+                            Icon(
+                              isSelected
+                                  ? Icons.check_circle_rounded
+                                  : Icons.circle_outlined,
+                              color: isSelected ? primaryColor : lightTextColor,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded( // Zapobiega overflow tekstu przy długich imionach
+                              child: Text(
+                                userName,
+                                style: TextStyle(
+                                  color: textColor,
+                                  fontWeight: isSelected
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                  fontFamily: appFontFamily,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              );
-            }).toList(),
+                  );
+                }).toList(),
+              ),
+            ),
           ),
           const SizedBox(height: 20),
 
-          // Przycisk "SUBMIT"
+          // --- PRZYCISK "SUBMIT" (TERAZ ZAWSZE WIDOCZNY) ---
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -859,10 +897,15 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 var d = myDebts[i];
                 var name = _roomies.firstWhere((u) => u['id'] == d.toUser, orElse: () => {'name': 'Unknown'})['name']!;
                 
-                // Sprawdź czy już wysłałem prośbę
-                bool isPending = pendingSettlements.any((s) => s['fromUserId'] == _currentUserId && s['toUserId'] == d.toUser);
-                
-                return _buildDebtCard(d, name, isOwedByMe: true, isPending: isPending);
+                // Sprawdź czy już wysłałem prośbę - znajdź dokładny dokument, jeśli istnieje
+                final matches = pendingSettlements.where((s) => s['fromUserId'] == _currentUserId && s['toUserId'] == d.toUser).toList();
+                final Map<String, dynamic>? pendingRequest = matches.isNotEmpty ? Map<String, dynamic>.from(matches.first) : null;
+                final String? pendingId = pendingRequest != null ? pendingRequest['id'] as String? : null;
+                final double? pendingSnapshotAmount = pendingRequest != null
+                    ? (pendingRequest['snapshotAmount'] != null ? (pendingRequest['snapshotAmount'] as num).toDouble() : (pendingRequest['amount'] as num?)?.toDouble())
+                    : null;
+
+                return _buildDebtCard(d, name, isOwedByMe: true, isPending: pendingId != null, pendingSettlementId: pendingId, pendingAmount: pendingSnapshotAmount);
               }, childCount: myDebts.length));
             }
 
@@ -876,12 +919,14 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 var name = _roomies.firstWhere((u) => u['id'] == d.fromUser, orElse: () => {'name': 'Unknown'})['name']!;
                 
                 // Sprawdź czy ktoś zgłosił, że mi oddał
-                var pendingRequest = pendingSettlements.firstWhere(
-                  (s) => s['fromUserId'] == d.fromUser && s['toUserId'] == _currentUserId, 
-                  orElse: () => {}
-                );
+                final matches = pendingSettlements.where((s) => s['fromUserId'] == d.fromUser && s['toUserId'] == _currentUserId).toList();
+                final Map<String, dynamic>? pendingRequest = matches.isNotEmpty ? Map<String, dynamic>.from(matches.first) : null;
+                final String? pendingId = pendingRequest != null ? pendingRequest['id'] as String? : null;
+                final double? pendingSnapshotAmount = pendingRequest != null
+                    ? (pendingRequest['snapshotAmount'] != null ? (pendingRequest['snapshotAmount'] as num).toDouble() : (pendingRequest['amount'] as num?)?.toDouble())
+                    : null;
 
-                return _buildDebtCard(d, name, isOwedByMe: false, pendingSettlementId: pendingRequest['id']);
+                return _buildDebtCard(d, name, isOwedByMe: false, pendingSettlementId: pendingId, pendingAmount: pendingSnapshotAmount);
               }, childCount: oweMe.length));
             }
 

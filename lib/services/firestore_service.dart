@@ -6,6 +6,7 @@ import '../models/expense_history_item.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:roomies/utils/user_roles.dart';
 import '../models/announcement_model.dart';
+import '../utils/split_bill_logic.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -117,47 +118,177 @@ class FirestoreService {
     }
   }
 
-  // wyjście użytkownika z grupy
+  // wyjście użytkownika z grupy - usuwa wszystkie powiązane wydatki i zadania
   Future<void> userExitsAGroup() async {
     try {
-    final String userId = FirebaseAuth.instance.currentUser!.uid; //pobranie id aktualnie zalogowanego użytkownika
-    final groupId = await getCurrentUserGroupId(); //pobranie id grupy użytkownika
+    final String userId = FirebaseAuth.instance.currentUser!.uid;
+    final groupId = await getCurrentUserGroupId();
     final batch = _firestore.batch();
-    final currentUserRole = await getCurrentUserRole(); //pobranie roli użytkownika
-    final usersInGroup = await _firestore //zapytanie zwracające wszystkich użytkowników należących do grupy 
+    final currentUserRole = await getCurrentUserRole();
+    final usersInGroup = await _firestore
         .collection('users')
         .where('groupId', isEqualTo: groupId)
         .get();
-     //jeśli użytkowink opuszczający grupę był jedynym jej członkiem to grupa jest usuwana    
-    if (usersInGroup.size == 1) {
-      batch.delete(_firestore.collection('groups').doc(groupId));
 
-      // usuń wszystkie powiązane dokumenty
-      final collectionsToDelete = ['announcements', 'tasks', 'shopping_items', 'expenses'];
-      for (var col in collectionsToDelete) { //dla każdej w wymienionych powyżej kolekcji
-        final snapshot = await _firestore.collection(col) //znajdź wszystkie dokumenty, które dotyczą usuwanej grupy i zapisz je w snapshot
+    debugPrint('User $userId exiting group $groupId');
+
+    // Usuń lub zaktualizuj WSZYSTKIE wydatki związane z użytkownikiem
+    final expensesSnapshot = await _firestore.collection('expenses')
         .where('groupId', isEqualTo: groupId)
         .get();
-        for (var doc in snapshot.docs) { //usuń każdy dokument ze snapshot
+    
+    int deletedExpenses = 0;
+    int updatedExpenses = 0;
+    
+    for (var doc in expensesSnapshot.docs) {
+      final data = doc.data();
+      final payerId = data['payerId'] as String?;
+      final participantsIds = List<String>.from(data['participantsIds'] ?? []);
+      
+      // Sprawdź czy użytkownik jest powiązany z tym wydatkiem
+      bool isPayerOrParticipant = (payerId == userId) || participantsIds.contains(userId);
+      
+      if (!isPayerOrParticipant) {
+        continue; // Użytkownik nie jest związany z tym wydatkiem
+      }
+      
+      // Policz liczbę unikalnych osób w wydatku (payer + particpants)
+      Set<String> allParticipants = {payerId ?? '', ...participantsIds};
+      allParticipants.remove(''); // Usuń pusty string jeśli był
+      
+      // REGUŁA 1: Jeśli wydatek był tylko między 2 osobami - usuń go całkowicie
+      if (allParticipants.length == 2 && isPayerOrParticipant) {
+        batch.delete(doc.reference);
+        deletedExpenses++;
+        debugPrint('Deleted expense: ${doc.id} - it was between 2 people (will settle outside app)');
+      }
+      // REGUŁA 2: Jeśli wydatek miał 3+ osoby
+      else if (allParticipants.length >= 3) {
+        if (payerId == userId) {
+          // Jeśli użytkownik był payerId, usuń wydatek (on płacił i wychodzi)
+          batch.delete(doc.reference);
+          deletedExpenses++;
+          debugPrint('Deleted expense: ${doc.id} - user was payer and group has ${allParticipants.length} people');
+        } else if (participantsIds.contains(userId)) {
+          // Jeśli użytkownik był tylko uczestnikiem - usuń go z listy i przelicz
+          participantsIds.remove(userId);
+          batch.update(doc.reference, {
+            'participantsIds': participantsIds,
+          });
+          updatedExpenses++;
+          debugPrint('Updated expense: ${doc.id} - removed user $userId from participants (${participantsIds.length} people remain)');
+        }
+      }
+    }
+    debugPrint('Deleted $deletedExpenses expenses, updated $updatedExpenses expenses for user $userId');
+
+    // Teraz przelicz BALANSY GRUPY od nowa na podstawie zaktualizowanych wydatków
+    // Pobierz wszystkie wydatki (już zaktualizowane)
+    final updatedExpensesSnapshot = await _firestore.collection('expenses')
+        .where('groupId', isEqualTo: groupId)
+        .get();
+    
+    final remainingExpenses = updatedExpensesSnapshot.docs
+        .map((doc) => ExpenseHistoryItem.fromMap(doc.data(), doc.id))
+        .toList();
+
+    // Pobierz pozostałych użytkowników grupy (bez odchodzącego)
+    final remainingUsersSnapshot = await _firestore.collection('users')
+        .where('groupId', isEqualTo: groupId)
+        .get();
+    
+    final remainingUserIds = remainingUsersSnapshot.docs
+        .map((d) => d.id)
+        .where((id) => id != userId)
+        .toList();
+
+    // Przelicz balansy od nowa
+    Map<String, double> newBalances = {};
+    for (var uid in remainingUserIds) {
+      newBalances[uid] = 0.0;
+    }
+
+    for (var expense in remainingExpenses) {
+      if (expense.participantsIds.isEmpty) continue;
+      double splitAmount = expense.amount / expense.participantsIds.length;
+      
+      if (remainingUserIds.contains(expense.payerId)) {
+        newBalances[expense.payerId] = (newBalances[expense.payerId] ?? 0.0) + expense.amount;
+      }
+      
+      for (var participantId in expense.participantsIds) {
+        if (remainingUserIds.contains(participantId)) {
+          newBalances[participantId] = (newBalances[participantId] ?? 0.0) - splitAmount;
+        }
+      }
+    }
+
+    debugPrint('Recalculated balances: $newBalances');
+    
+    // Zaktualizuj balansy w grupie z prawidłowo przeliczonymi wartościami
+    batch.update(
+      _firestore.collection('groups').doc(groupId),
+      {'balances': newBalances},
+    );
+    debugPrint('Updated balances for group $groupId with recalculated values');
+    
+    final tasksSnapshot = await _firestore.collection('tasks')
+        .where('groupId', isEqualTo: groupId)
+        .where('assignedTo', isEqualTo: userId)
+        .get();
+    
+    int deletedTasks = 0;
+    for (var doc in tasksSnapshot.docs) {
+      batch.delete(doc.reference);
+      deletedTasks++;
+    }
+    debugPrint('Deleted $deletedTasks tasks for user $userId');
+
+    // Usuń wszystkie prośby rozliczeniowe dotyczące użytkownika
+    final settlementsSnapshot = await _firestore.collection('settlements')
+        .where('groupId', isEqualTo: groupId)
+        .get();
+    
+    int deletedSettlements = 0;
+    for (var doc in settlementsSnapshot.docs) {
+      final data = doc.data();
+      final fromUserId = data['fromUserId'] as String?;
+      final toUserId = data['toUserId'] as String?;
+      if (fromUserId == userId || toUserId == userId) {
+        batch.delete(doc.reference);
+        deletedSettlements++;
+      }
+    }
+    debugPrint('Deleted $deletedSettlements settlements for user $userId');
+
+    if (usersInGroup.size == 1) {
+      batch.delete(_firestore.collection('groups').doc(groupId));
+      final collectionsToDelete = ['announcements', 'shopping_items'];
+      for (var col in collectionsToDelete) {
+        final snapshot = await _firestore.collection(col)
+        .where('groupId', isEqualTo: groupId)
+        .get();
+        for (var doc in snapshot.docs) {
         batch.delete(doc.reference);
         }
       }
+      debugPrint('Group $groupId deleted (user was the last member)');
     } 
-    // jeśli była więcej niż jedna osoba w grupie i odchodzi z niej apartmentManager, należy przypisać te rolę innemu, losowemu użytkownikowi
     else if(currentUserRole == UserRole.apartmentManager){ 
-        final otherUsers = usersInGroup.docs // zapytanie które przypisuje wszystkich członków grupy, poza usuwanym, do listy otherUsers
+        final otherUsers = usersInGroup.docs
           .where((doc) => doc.id != userId)
           .toList();
-      if(otherUsers.isNotEmpty){ //dodatkowe zabezpieczenie
-        otherUsers.shuffle(); //przetasowanie kolejności uzytkowników z listy
-        final newManagerId = otherUsers.first.id; //zapisanie id nowego managera
+      if(otherUsers.isNotEmpty){
+        otherUsers.shuffle();
+        final newManagerId = otherUsers.first.id;
         batch.update(
-          _firestore.collection('users').doc(newManagerId), //nadanie nowej roli managera wylosowanej osobie
+          _firestore.collection('users').doc(newManagerId),
           {'role': UserRole.apartmentManager},
         );
+        debugPrint('Transferred apartment manager role to $newManagerId');
       }
     }
-    //usunięty użytkownik otrzymuje domyślne id i rolę dla nieprzynależącego nigdzie użytkownika 
+    
     batch.update(
       _firestore.collection('users').doc(userId),
       {
@@ -165,12 +296,61 @@ class FirestoreService {
         'role': UserRole.user,
       },
     );
-    await batch.commit(); //wszystkie operacje są zatwierdzane i wykonywane w tym momencie 
-    //batch chroni przed wykonaniem tylko części z koniecznych operacji (przypadki brzegowe)
-    //np. nieoczekiwane zamknięcie aplikacji podczas przyznawania roli, czyli przed usunięciem użytkownika -> dwóch managerów w grupie
+    await batch.commit();
+    debugPrint('User $userId successfully exited group $groupId');
     } catch (e) {
       debugPrint("userExitsAGroup error: $e");
       return;
+    }
+  }
+
+  // Pobierz saldo użytkownika i niezakończone taski do wyświetlenia w dialogu exit
+  Future<Map<String, dynamic>> getExitSummary() async {
+    try {
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      final groupId = await getCurrentUserGroupId();
+      
+      if (userId == null || groupId.isEmpty) {
+        return {'debtAmount': 0.0, 'incompleteTasks': 0, 'isManager': false};
+      }
+
+      // Pobierz role użytkownika
+      final currentRole = await getCurrentUserRole();
+      final isManager = currentRole == UserRole.apartmentManager;
+
+      // Pobierz saldo z grupy
+      double debtAmount = 0.0;
+      final groupDoc = await _firestore.collection('groups').doc(groupId).get();
+      if (groupDoc.exists && groupDoc.data()!.containsKey('balances')) {
+        final balances = groupDoc.data()!['balances'] as Map<String, dynamic>;
+        if (balances.containsKey(userId)) {
+          final userBalance = (balances[userId] as num).toDouble();
+          // Jeśli saldo jest ujemne = dług
+          if (userBalance < 0) {
+            debtAmount = userBalance.abs();
+          }
+        }
+      }
+
+      debugPrint('User $userId debt: $debtAmount PLN');
+
+      // Liczenie niezakończonych zadań
+      final tasksSnapshot = await _firestore.collection('tasks')
+          .where('groupId', isEqualTo: groupId)
+          .where('assignedTo', isEqualTo: userId)
+          .get();
+
+      final incompleteTasks = tasksSnapshot.docs.length;
+      debugPrint('Incomplete tasks count: $incompleteTasks');
+
+      return {
+        'debtAmount': debtAmount,
+        'incompleteTasks': incompleteTasks,
+        'isManager': isManager,
+      };
+    } catch (e) {
+      debugPrint('getExitSummary error: $e');
+      return {'debtAmount': 0.0, 'incompleteTasks': 0, 'isManager': false};
     }
   }
 
@@ -728,11 +908,43 @@ class FirestoreService {
   Future<void> requestSettlement(String toUserId, double amount) async {
     final fromUserId = FirebaseAuth.instance.currentUser?.uid;
     final groupId = await getCurrentUserGroupId();
-    
+    // Calculate and store a snapshot of the current debt between users so
+    // subsequent changes to balances/expenses won't mutate this request.
+    double snapshotAmount = amount;
+    try {
+      final groupDoc = await _firestore.collection('groups').doc(groupId).get();
+      if (groupDoc.exists && groupDoc.data()!.containsKey('balances')) {
+        final Map<String, dynamic> raw = groupDoc.data()!['balances'];
+        final Map<String, double> balances = {};
+        raw.forEach((k, v) => balances[k] = (v as num).toDouble());
+        // compute debts from balances
+        final debts = await Future.value();
+        // use SplitBillLogic without importing here to avoid circulars: compute inline minimal
+        // Instead, try to compute matching balance directly: the debt from fromUserId to toUserId
+        if (fromUserId != null && balances.containsKey(fromUserId) && balances.containsKey(toUserId)) {
+          // The simplest snapshot is the difference between creditor and debtor signs
+          // If fromUser owes (negative balance) and toUser is creditor (positive), the amount owed
+          final fromBal = balances[fromUserId] ?? 0.0;
+          final toBal = balances[toUserId] ?? 0.0;
+          // estimate owed amount as min(abs(fromBal), toBal) when signs match
+          if (fromBal < 0 && toBal > 0) {
+            snapshotAmount = (fromBal.abs() < toBal) ? fromBal.abs() : toBal;
+          } else {
+            // fallback to provided amount
+            snapshotAmount = amount;
+          }
+        }
+      }
+    } catch (e) {
+      // ignore snapshot calculation errors and fall back to provided amount
+      snapshotAmount = amount;
+    }
+
     await _firestore.collection('settlements').add({
       'fromUserId': fromUserId, // Who is paying
       'toUserId': toUserId,     // Who should confirm
       'amount': amount,
+      'snapshotAmount': snapshotAmount,
       'groupId': groupId,
       'status': 'pending',      // Pending confirmation
       'createdAt': FieldValue.serverTimestamp(),

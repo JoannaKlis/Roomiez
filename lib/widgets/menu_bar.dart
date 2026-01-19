@@ -82,7 +82,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
   }
 
 void _showExitGroupDialog(BuildContext context) {
-  bool isProcessing = false; // zmienna do blokady przycisku 'Yes'
+  bool isProcessing = false;
   final parentContext = context;
 
   showDialog(
@@ -91,7 +91,213 @@ void _showExitGroupDialog(BuildContext context) {
     builder: (dialogContext) {
       return StatefulBuilder(
         builder: (sbContext, setState) {
-          //styl okienka (zaokrąglenie krawędzi, rozmieszczenie elementów i tekstu)
+          return FutureBuilder<Map<String, dynamic>>(
+            future: _firestoreService.getExitSummary(),
+            builder: (ctx, snapshot) {
+              final summaryData = snapshot.data ?? {'debtAmount': 0.0, 'incompleteTasks': 0, 'isManager': false};
+              final debtAmount = (summaryData['debtAmount'] as num?)?.toDouble() ?? 0.0;
+              final incompleteTasks = summaryData['incompleteTasks'] as int? ?? 0;
+              final isManager = summaryData['isManager'] as bool? ?? false;
+              final hasDebts = debtAmount > 0.01;
+              final hasTasks = incompleteTasks > 0;
+
+              return AlertDialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                title: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Exit group?'),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.of(dialogContext).pop(),
+                    ),
+                  ],
+                ),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // GŁÓWNY KOMUNIKAT Z CAŁKOWITYM DŁUGIEM
+                      if (hasDebts) ...[
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.red.withOpacity(0.4), width: 2),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Row(
+                                children: [
+                                  Icon(Icons.warning_rounded, color: Colors.red, size: 24),
+                                  SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      'Check your expenses!',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.red,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'You owe your roommates:',
+                                style: TextStyle(
+                                  color: Colors.red.shade700,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                '${debtAmount.toStringAsFixed(2)} PLN',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.red,
+                                  fontSize: 20,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              const Text(
+                                'If you exit the group, all your expenses and tasks will be deleted.',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.red,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ] else ...[
+                        const Text('Are you sure you want to exit the group?'),
+                      ],
+
+                      // Apartment Manager Warning
+                      if (isManager) ...[
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.amber.withOpacity(0.5)),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(Icons.admin_panel_settings, color: Colors.amber, size: 20),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'You are an Apartment Manager. Your role will be transferred to another member.',
+                                  style: TextStyle(fontSize: 12, color: Colors.amber),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+
+                      // Tasks Warning
+                      if (hasTasks) ...[
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Row(
+                                children: [
+                                  Icon(Icons.task_alt_rounded, color: Colors.orange, size: 20),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Niezakończone zadania:',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.orange,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                '$incompleteTasks zadanie(n) zostanie usunięte',
+                                style: const TextStyle(fontSize: 12, color: Colors.orange),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+
+                      if (!hasDebts && !hasTasks && !isManager) ...[
+                        const SizedBox(height: 12),
+                        const Text(
+                          'You have no active debts or incomplete tasks.',
+                          style: TextStyle(fontSize: 12, color: Colors.green),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                  TextButton(
+                    onPressed: isProcessing
+                        ? null
+                        : () async {
+                            setState(() => isProcessing = true);
+                            try {
+                              await _firestoreService.userExitsAGroup();
+                              if (parentContext.mounted) {
+                                Navigator.of(parentContext).pushAndRemoveUntil(
+                                  MaterialPageRoute(builder: (_) => const DashboardScreen()),
+                                  (route) => false,
+                                );
+                              }
+                            } catch (e) {
+                              debugPrint('Error exiting group: $e');
+                            }
+                          },
+                    style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+                    child: const Text('Yes, Exit'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+    },
+  );
+}
+
+void _showResetExpensesDialog(BuildContext context) {
+  bool isProcessing = false;
+  final parentContext = context;
+
+  showDialog(
+    context: parentContext,
+    barrierDismissible: false,
+    builder: (dialogContext) {
+      return StatefulBuilder(
+        builder: (sbContext, setState) {
           return AlertDialog(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -99,39 +305,103 @@ void _showExitGroupDialog(BuildContext context) {
             title: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Exit group?'),
+                const Text('Reset all expenses?'),
                 IconButton(
                   icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.of(dialogContext).pop(), //zamknięcie okna po kliknięciu X
+                  onPressed: () => Navigator.of(dialogContext).pop(),
                 ),
               ],
             ),
-            content: const Text('Are you sure you want to exit the group?'), //treść komunikatu
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.orange.withOpacity(0.4), width: 2),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.warning_rounded, color: Colors.orange, size: 24),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'This action cannot be undone!',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.orange,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'This will:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          '• Delete ALL expenses in the group\n• Reset everyone\'s balance to 0.00 PLN\n• Clear all pending settlement requests',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.orange,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(), //zamknięcie okna po kliknięciu anuluj
+                onPressed: () => Navigator.of(dialogContext).pop(),
                 child: const Text('Cancel'),
               ),
               TextButton(
-              onPressed: isProcessing // konstrukcja zabezpieczająca przed wielokrotnym wykonaniem wyjścia z grupy w jednej chwili 
-                  ? null //  przypadek brzegowy, kliknięcie 'tak' szybko kilka razy
-                  : () async {
-                      setState(() => isProcessing = true);
+                onPressed: isProcessing
+                    ? null
+                    : () async {
+                        setState(() => isProcessing = true);
                         try {
-                          await _firestoreService.userExitsAGroup(); //funkcja usuwająca użytkownika z bazy
-                          if (parentContext.mounted) { // przeniesienie na ekran dołączania/tworzenia grupy jeśli widget widoczny
-                            Navigator.of(parentContext).pushAndRemoveUntil(
-                              MaterialPageRoute(builder: (_) => const DashboardScreen()),
-                              (route) => false, //usunięcie poprzednich ekranów ze stosu. Po wyjściu z grupy nie powinno być możliwości powrotu
+                          await _firestoreService.deleteAllExpenses();
+                          if (parentContext.mounted) {
+                            Navigator.of(parentContext).pop();
+                            ScaffoldMessenger.of(parentContext).showSnackBar(
+                              const SnackBar(
+                                content: Text('All expenses have been reset!'),
+                                duration: Duration(seconds: 2),
+                              ),
                             );
                           }
                         } catch (e) {
-                          debugPrint('Error exiting group: $e');
+                          debugPrint('Error resetting expenses: $e');
+                          if (parentContext.mounted) {
+                            ScaffoldMessenger.of(parentContext).showSnackBar(
+                              SnackBar(
+                                content: Text('Error: $e'),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          }
                         }
                       },
-              style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
-              child: const Text('Yes'),
-            ),
+                style: TextButton.styleFrom(foregroundColor: Colors.orange),
+                child: const Text('Yes, Reset All'),
+              ),
             ],
           );
         },
@@ -344,6 +614,25 @@ void _showExitGroupDialog(BuildContext context) {
                 ],
               ),
             ),
+            const Divider(color: borderColor, height: 1),
+            
+            // --- MANAGER OPTIONS ---
+            if (_isApartmentManager)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                child: Column(
+                  children: [
+                    _DrawerItem(
+                      icon: Icons.delete_sweep_rounded,
+                      label: 'Reset all expenses',
+                      textColor: Colors.orangeAccent,
+                      iconColor: Colors.orangeAccent,
+                      onTap: () => _showResetExpensesDialog(context),
+                    ),
+                  ],
+                ),
+              ),
+            
             const Divider(color: borderColor, height: 1),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

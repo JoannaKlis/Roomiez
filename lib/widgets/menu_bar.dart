@@ -82,264 +82,240 @@ class _CustomDrawerState extends State<CustomDrawer> {
   }
 
 void _showExitGroupDialog(BuildContext context) {
-  bool isProcessing = false;
-  final parentContext = context;
+    bool isProcessing = false;
+    final parentContext = context;
 
-  showDialog(
-    context: parentContext,
-    barrierDismissible: false,
-    builder: (dialogContext) {
-      return StatefulBuilder(
-        builder: (sbContext, setState) {
-          return FutureBuilder<Map<String, dynamic>>(
-            future: _firestoreService.getExitSummary(),
-            builder: (ctx, snapshot) {
-              final summaryData = snapshot.data ?? {'debtAmount': 0.0, 'incompleteTasks': 0, 'pendingSettlements': 0, 'isManager': false};
-              final debtAmount = (summaryData['debtAmount'] as num?)?.toDouble() ?? 0.0;
-              final incompleteTasks = summaryData['incompleteTasks'] as int? ?? 0;
-              final pendingSettlements = summaryData['pendingSettlements'] as int? ?? 0;
-              final isManager = summaryData['isManager'] as bool? ?? false;
-              final hasDebts = debtAmount > 0.01;
-              final hasTasks = incompleteTasks > 0;
-              final hasPendingSettlements = pendingSettlements > 0;
-              final canExit = !hasPendingSettlements; // Nie możesz wyjść jeśli są oczekujące rozliczenia
-
-              return AlertDialog(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                title: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Exit group?'),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.of(dialogContext).pop(),
+    showDialog(
+      context: parentContext,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (sbContext, setState) {
+            return FutureBuilder<Map<String, dynamic>>(
+              future: _firestoreService.getExitSummary(),
+              builder: (ctx, snapshot) {
+                // Loader podczas pobierania danych
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return AlertDialog(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    content: const SizedBox(
+                      height: 100,
+                      child: Center(child: CircularProgressIndicator(color: primaryColor)),
                     ),
-                  ],
-                ),
-                content: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // BŁĄD: Oczekujące rozliczenia - BLOKUJE WYJŚCIE!
-                      if (hasPendingSettlements) ...[
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.red.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.red.withOpacity(0.4), width: 2),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Row(
-                                children: [
-                                  Icon(Icons.error_outline, color: Colors.red, size: 24),
-                                  SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(
-                                      'Cannot exit - settlements pending!',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.red,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                'You have $pendingSettlements settlement(s) waiting for confirmation.',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.red,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              const Text(
-                                'You must confirm or reject all pending settlements before you can exit the group.',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.red,
-                                  fontStyle: FontStyle.italic,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ] else if (hasDebts) ...[
-                        // GŁÓWNY KOMUNIKAT Z CAŁKOWITYM DŁUGIEM
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.red.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.red.withOpacity(0.4), width: 2),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Row(
-                                children: [
-                                  Icon(Icons.warning_rounded, color: Colors.red, size: 24),
-                                  SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(
-                                      'Check your expenses!',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.red,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                'You owe your roommates:',
-                                style: TextStyle(
-                                  color: Colors.red.shade700,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                '${debtAmount.toStringAsFixed(2)} PLN',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.red,
-                                  fontSize: 20,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              const Text(
-                                'If you exit the group, all your expenses and tasks will be deleted.',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.red,
-                                  fontStyle: FontStyle.italic,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ] else ...[
-                        const Text('Are you sure you want to exit the group?'),
-                      ],
+                  );
+                }
 
-                      // Apartment Manager Warning
-                      if (isManager) ...[
-                        const SizedBox(height: 16),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.amber.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.amber.withOpacity(0.5)),
-                          ),
-                          child: const Row(
-                            children: [
-                              Icon(Icons.admin_panel_settings, color: Colors.amber, size: 20),
-                              SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'You are an Apartment Manager. Your role will be transferred to another member.',
-                                  style: TextStyle(fontSize: 12, color: Colors.amber),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                final summaryData = snapshot.data ?? 
+                    {'debtAmount': 0.0, 'incompleteTasks': 0, 'pendingSettlements': 0, 'isManager': false};
+                
+                final debtAmount = (summaryData['debtAmount'] as num?)?.toDouble() ?? 0.0;
+                final incompleteTasks = summaryData['incompleteTasks'] as int? ?? 0;
+                final pendingSettlements = summaryData['pendingSettlements'] as int? ?? 0; // NOWE
+                final isManager = summaryData['isManager'] as bool? ?? false;
+                
+                final hasDebts = debtAmount > 0.01;
+                final hasTasks = incompleteTasks > 0;
+                final hasPendingSettlements = pendingSettlements > 0; // NOWE
 
-                      // Tasks Warning
-                      if (hasTasks) ...[
-                        const SizedBox(height: 16),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.orange.withOpacity(0.3)),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Row(
-                                children: [
-                                  Icon(Icons.task_alt_rounded, color: Colors.orange, size: 20),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    'Niezakończone zadania:',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.orange,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                '$incompleteTasks zadanie(n) zostanie usunięte',
-                                style: const TextStyle(fontSize: 12, color: Colors.orange),
-                              ),
-                            ],
-                          ),
-                        ),
+                // --- BLOKADA: Jeśli są wiszące rozliczenia ---
+                if (hasPendingSettlements) {
+                  return AlertDialog(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    title: const Row(
+                      children: [
+                        Icon(Icons.error_outline_rounded, color: Colors.red, size: 28),
+                        SizedBox(width: 12),
+                        Text('Cannot Exit', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
                       ],
-
-                      if (!hasDebts && !hasTasks && !isManager && !hasPendingSettlements) ...[
+                    ),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'You have $pendingSettlements pending settlement(s).',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
                         const SizedBox(height: 12),
                         const Text(
-                          'You have no active debts or incomplete tasks.',
-                          style: TextStyle(fontSize: 12, color: Colors.green),
+                          'You cannot leave the group while you have payments waiting for confirmation (either sent by you or waiting for your approval).',
+                          style: TextStyle(fontSize: 14),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Please confirm or cancel them in the Expenses tab before leaving.',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                         ),
                       ],
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        child: const Text('OK', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  );
+                }
+
+                // --- STANDARDOWE OSTRZEŻENIA (Jeśli brak blokady) ---
+                return AlertDialog(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  title: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Exit group?'),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                      ),
                     ],
                   ),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(dialogContext).pop(),
-                    child: const Text('Cancel'),
-                  ),
-                  TextButton(
-                    onPressed: (isProcessing || !canExit)
-                        ? null
-                        : () async {
-                            setState(() => isProcessing = true);
-                            try {
-                              await _firestoreService.userExitsAGroup();
-                              if (parentContext.mounted) {
-                                Navigator.of(parentContext).pushAndRemoveUntil(
-                                  MaterialPageRoute(builder: (_) => const DashboardScreen()),
-                                  (route) => false,
-                                );
-                              }
-                            } catch (e) {
-                              debugPrint('Error exiting group: $e');
-                            }
-                          },
-                    style: TextButton.styleFrom(
-                      foregroundColor: canExit ? Colors.redAccent : Colors.grey,
+                  content: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Ostrzeżenie o długach
+                        if (hasDebts) ...[
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.red.withOpacity(0.4), width: 2),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Row(
+                                  children: [
+                                    Icon(Icons.warning_rounded, color: Colors.red, size: 24),
+                                    SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        'You have debts!',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.red,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'You owe: ${debtAmount.toStringAsFixed(2)} PLN',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.red,
+                                    fontSize: 18,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                const Text(
+                                  'Leaving now will delete your history, but you technically still owe this money.',
+                                  style: TextStyle(fontSize: 11, color: Colors.red),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+
+                        // Ostrzeżenie dla Managera
+                        if (isManager) ...[
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.amber.withOpacity(0.5)),
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(Icons.admin_panel_settings, color: Colors.amber, size: 20),
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'You are the Manager. Role will be auto-transferred.',
+                                    style: TextStyle(fontSize: 12, color: Colors.amber),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+
+                        // Ostrzeżenie o zadaniach
+                        if (hasTasks) ...[
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.task_alt_rounded, color: Colors.orange, size: 20),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '$incompleteTasks incomplete task(s) will be removed.',
+                                  style: const TextStyle(fontSize: 12, color: Colors.orange),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+
+                        if (!hasDebts && !hasTasks && !isManager)
+                          const Text(
+                            'Are you sure you want to leave? You will need an invite code to join again.',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                      ],
                     ),
-                    child: const Text('Yes, Exit'),
                   ),
-                ],
-              );
-            },
-          );
-        },
-      );
-    },
-  );
-}
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(dialogContext).pop(),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: isProcessing
+                          ? null
+                          : () async {
+                              setState(() => isProcessing = true);
+                              try {
+                                await _firestoreService.userExitsAGroup();
+                                if (parentContext.mounted) {
+                                  Navigator.of(parentContext).pushAndRemoveUntil(
+                                    MaterialPageRoute(builder: (_) => const DashboardScreen()),
+                                    (route) => false,
+                                  );
+                                }
+                              } catch (e) {
+                                debugPrint('Error exiting group: $e');
+                                setState(() => isProcessing = false);
+                              }
+                            },
+                      style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+                      child: const Text('Yes, Exit'),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
 
 void _showResetExpensesDialog(BuildContext context) {
   bool isProcessing = false;

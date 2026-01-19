@@ -322,8 +322,6 @@ class FirestoreService {
         }
       }
 
-      debugPrint('User $userId debt: $debtAmount PLN');
-
       // 3. Liczenie niezakończonych zadań
       final tasksSnapshot = await _firestore.collection('tasks')
           .where('groupId', isEqualTo: groupId)
@@ -343,15 +341,14 @@ class FirestoreService {
         final data = doc.data();
         final fromUserId = data['fromUserId'];
         final toUserId = data['toUserId'];
-        final status = data['status'] as String?;
         
-        // Liczymy TYLKO rozliczenia ze statusem "waiting for confirmation" i gdzie użytkownik jest zaangażowany
-        if ((fromUserId == userId || toUserId == userId) && status == 'waiting for confirmation') {
+        // Jeśli użytkownik jest stroną w transakcji (czeka na potwierdzenie lub musi potwierdzić)
+        if (fromUserId == userId || toUserId == userId) {
           pendingSettlements++;
         }
       }
       
-      debugPrint('Incomplete tasks: $incompleteTasks, Pending settlements: $pendingSettlements');
+      debugPrint('User $userId summary: Debt: $debtAmount, Tasks: $incompleteTasks, Settlements: $pendingSettlements');
 
       return {
         'debtAmount': debtAmount,

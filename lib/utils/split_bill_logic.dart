@@ -1,12 +1,11 @@
 import '../models/expense_history_item.dart';
 
-// --- NOWOŚĆ: Extension do zaokrąglania ---
-// Wklej to na samym dole pliku lub na górze, poza klasą
+/// Extension for number rounding
 extension DoubleRounding on double {
   double toPrecision(int n) => double.parse(toStringAsFixed(n));
 }
 
-// Klasa pomocnicza
+/// Represents a single debt transaction
 class Debt {
   final String fromUser;
   final String toUser;
@@ -15,12 +14,13 @@ class Debt {
   Debt({required this.fromUser, required this.toUser, required this.amount});
 }
 
+/// Utility class for split bill calculations
 class SplitBillLogic {
   
+  /// Calculate all debts from expense history
   static List<Debt> calculateDebts(List<ExpenseHistoryItem> expenses, List<String> allUserIds) {
     Map<String, double> balances = {};
 
-    // Inicjalizacja zerami TYLKO dla obecnych członków
     for (var uid in allUserIds) {
       balances[uid] = 0.0;
     }
@@ -30,12 +30,10 @@ class SplitBillLogic {
 
       double splitAmount = expense.amount / expense.participantsIds.length;
 
-      // 1. Dodajemy płatnikowi (jeśli nadal jest w grupie)
       if (allUserIds.contains(expense.payerId)) {
         balances[expense.payerId] = (balances[expense.payerId] ?? 0.0) + expense.amount;
       }
 
-      // 2. Odejmujemy uczestnikom (tylko tym, którzy są w grupie)
       for (var participantId in expense.participantsIds) {
         if (allUserIds.contains(participantId)) {
           balances[participantId] = (balances[participantId] ?? 0.0) - splitAmount;
@@ -47,9 +45,7 @@ class SplitBillLogic {
     List<MapEntry<String, double>> creditors = [];
 
     balances.forEach((userId, amount) {
-      // UŻYCIE EXTENSION (czyściej i bezpieczniej)
       double val = amount.toPrecision(2);
-      
       if (val < -0.01) debtors.add(MapEntry(userId, val)); 
       if (val > 0.01) creditors.add(MapEntry(userId, val));  
     });
@@ -65,7 +61,6 @@ class SplitBillLogic {
       var debtor = debtors[i];
       var creditor = creditors[j];
 
-      // UŻYCIE EXTENSION
       double amount = (debtor.value.abs() < creditor.value ? debtor.value.abs() : creditor.value)
           .toPrecision(2);
 
@@ -73,7 +68,6 @@ class SplitBillLogic {
         finalDebts.add(Debt(fromUser: debtor.key, toUser: creditor.key, amount: amount));
       }
 
-      // UŻYCIE EXTENSION
       double remainingDebt = (debtor.value + amount).toPrecision(2);
       double remainingCredit = (creditor.value - amount).toPrecision(2);
 
@@ -93,7 +87,7 @@ class SplitBillLogic {
     return finalDebts;
   }
 
-  // Nowa metoda: Szybkie liczenie z gotowej mapy (bez mielenia historii)
+  /// Calculate debts from balance map directly
   static List<Debt> calculateDebtsFromMap(Map<String, double> balances) {
     List<MapEntry<String, double>> debtors = [];
     List<MapEntry<String, double>> creditors = [];

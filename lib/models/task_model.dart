@@ -1,15 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-// Prosty model reprezentujący zadanie do wykonania
+/// Represents a task assigned to a user
 class Task {
   final String id;
   final String title;
-  final String assignedToId; // Kto jest przypisany (np. "Ana", "Martin")
-  final String assignedToName; // Imię przypisanej osoby
-  final String groupId; // ID grupy, do której należy zadanie
-  bool isDone; // Status "zrobione" lub "niezrobione"
-  final DateTime dueDate; // Np. "Tomorrow", "31.10.2025"
-  final DateTime? completedAt; // Timestamp kiedy zadanie zostało oznaczone jako zrobione
+  final String assignedToId;
+  final String assignedToName;
+  final String groupId;
+  bool isDone;
+  final DateTime dueDate;
+  final DateTime? completedAt;
 
   Task({
     required this.id,
@@ -22,10 +22,8 @@ class Task {
     this.completedAt,
   });
 
-
-// metoda do tworzenia obiektu z firestore 
-factory Task.fromMap(Map<String, dynamic> data, String documentId) {
-    // defensywna konwersja pola dueDate (może być Timestamp, DateTime lub brak)
+  /// Create from Firestore document
+  factory Task.fromMap(Map<String, dynamic> data, String documentId) {
     DateTime due;
     final raw = data['dueDate'];
     if (raw == null) {
@@ -44,7 +42,6 @@ factory Task.fromMap(Map<String, dynamic> data, String documentId) {
       due = DateTime.now();
     }
 
-    // defensywne pobieranie pól i bezpieczne rzutowanie
     final title = (data['title'] != null) ? data['title'].toString() : '';
     final assignedToId = (data['assignedToId'] != null) ? data['assignedToId'].toString() : '';
     final assignedToName = (data['assignedToName'] != null) ? data['assignedToName'].toString() : '';
@@ -60,7 +57,6 @@ factory Task.fromMap(Map<String, dynamic> data, String documentId) {
       isDone = rawIsDone.toLowerCase() == 'true';
     }
 
-    // Defensywne pobieranie completedAt
     DateTime? completedAt;
     final rawCompletedAt = data['completedAt'];
     if (rawCompletedAt is Timestamp) {
@@ -87,7 +83,7 @@ factory Task.fromMap(Map<String, dynamic> data, String documentId) {
     );
   }
 
-  // metoda do mapowania obiektu na firestore
+  /// Convert to Firestore format
   Map<String, dynamic> toMap() {
     return {
       'title': title,
@@ -95,7 +91,6 @@ factory Task.fromMap(Map<String, dynamic> data, String documentId) {
       'assignedToName': assignedToName,
       'groupId': groupId,
       'isDone': isDone,
-      // zapisujemy jako Timestamp aby uniknąć niezgodności typów
       'dueDate': Timestamp.fromDate(dueDate),
       'completedAt': completedAt != null ? Timestamp.fromDate(completedAt!) : null,
     };

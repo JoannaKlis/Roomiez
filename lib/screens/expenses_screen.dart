@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
-import '../constants.dart'; // Twoje stałe (primaryColor, backgroundColor, fonts...)
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/services.dart';
+import '../constants.dart';
 import '../models/expense_history_item.dart';
 import '../services/firestore_service.dart';
-import 'navigation_screen.dart';
-import '../widgets/menu_bar.dart' as mb;
-import 'announcements_screen.dart';
 import '../utils/split_bill_logic.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../widgets/menu_bar.dart' as mb;
+import 'navigation_screen.dart';
+import 'announcements_screen.dart';
 import 'home_screen.dart';
-import 'package:flutter/services.dart';
 
 class ExpensesScreen extends StatefulWidget {
   const ExpensesScreen({super.key});
@@ -20,8 +20,6 @@ class ExpensesScreen extends StatefulWidget {
 }
 
 class _ExpensesScreenState extends State<ExpensesScreen> {
-  // --- ZARZĄDZANIE STANEM (Logika bez zmian) ---
-
   final FirestoreService _firestoreService = FirestoreService();
   final String _currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
   String _groupName = 'Loading...';
@@ -39,11 +37,9 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   double _myNetBalance = 0.0;
   bool _isNewExpenseFormVisible = false;
 
-  // Symulacja backendu
   final Set<String> _mockMarkedAsPaid = {};
   final Set<String> _mockConfirmedReceived = {};
 
-  // --- ZMIENNE PAGINACJI ---
   final List<ExpenseHistoryItem> _pagedExpenses = [];
   bool _isLoadingExpenses = false;
   bool _hasMoreExpenses = true;
@@ -68,6 +64,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     super.dispose();
   }
 
+  /// Load group data and expenses
   void _loadGroupData() async {
     try {
       final groupId = await _firestoreService.getCurrentUserGroupId();
@@ -88,7 +85,6 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           _isLoadingRoomies = false;
         });
         
-        // Po załadowaniu grupy, załaduj pierwszą paczkę wydatków
         _loadMoreExpenses();
       }
     } catch (e) {
@@ -108,11 +104,9 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     }
   }
 
-  // --- LOGIKA PAGINACJI ---
+  /// Load expenses with pagination
   Future<void> _loadMoreExpenses() async {
     if (_isLoadingExpenses || !_hasMoreExpenses || _userGroupId.isEmpty) return;
-    
-    // Paginacja działa tylko dla zakładek 0 (Current) i 1 (Archived)
     if (_selectedToggleIndex > 1) return;
 
     setState(() {
@@ -120,10 +114,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     });
 
     try {
-      // Określ filtr na podstawie zakładki
       bool isSettled = _selectedToggleIndex == 1;
 
-      // Pobierz z serwisu
       final newDocs = await _firestoreService.getExpensesPaged(
         limit: _pageSize,
         startAfter: _lastDocument,
@@ -150,7 +142,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     }
   }
 
-  // Resetowanie listy przy zmianie taba lub odświeżeniu
+  /// Reset pagination when switching tabs
   void _resetPagination() {
     setState(() {
       _pagedExpenses.clear();
@@ -160,8 +152,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     _loadMoreExpenses();
   }
 
-  // --- NOWE METODY POMOCNICZE ---
-
+  /// Handle settlement request
   void _handleSettleUp(String receiverId, double amount) {
     _firestoreService.requestSettlement(receiverId, amount).then((_) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -274,7 +265,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     }
 
     final newExpense = ExpenseHistoryItem(
-      id: '', // Firestore nada ID, ale tu placeholder
+      id: '',
       description: _descriptionController.text.trim(),
       payerId: _currentUserId,
       amount: amount,
@@ -296,7 +287,6 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
             content: Text('Expense added successfully!'),
             backgroundColor: primaryColor),
       );
-      // Odśwież listę po dodaniu nowego wydatku
       _resetPagination();
     }).catchError((e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -307,7 +297,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     });
   }
 
-  // Dialog potwierdzenia przed usunięciem wszystkich wydatków
+  /// Show confirmation dialog before deleting all expenses
   Future<void> _showDeleteAllExpensesDialog() async {
     final bool? shouldDelete = await showDialog<bool>(
       context: context,
@@ -335,8 +325,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         await _firestoreService.deleteAllExpenses();
         if (mounted) {
           setState(() {
-             // Wyczyść lokalną listę
-             _pagedExpenses.clear();
+            _pagedExpenses.clear();
           });
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -516,16 +505,13 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     );
   }
 
-  // --- WIDGETY POMOCNICZE (Clean UI) ---
-
-  /// Karta "Your balance" - WERSJA JASNA (Light Theme)
+  /// Your balance card with light theme styling
   Widget _buildBalanceCard() {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: surfaceColor, // Jasnoszary zamiast czarnego
+        color: surfaceColor,
         borderRadius: BorderRadius.circular(24),
-        // Usunąłem cień, żeby było bardziej płasko, albo można dać bardzo delikatny
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -599,8 +585,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     );
   }
 
-  /// Formularz dodawania nowego wydatku - Czysty styl
-  /// Formularz dodawania nowego wydatku - Czysty styl (Z NAPRAWIONYM PRZYCISKIEM I KWOTĄ)
+  /// Add new expense form with clean styling
   Widget _buildNewExpenseForm() {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -628,35 +613,31 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   fontFamily: appFontFamily)),
           const SizedBox(height: 16),
 
-          // --- POLE OPISU ---
           TextField(
             controller: _descriptionController,
             decoration: const InputDecoration(
               hintText: 'What is this for?',
               prefixIcon:
                   Icon(Icons.description_outlined, color: lightTextColor),
-              counterText: "", // Ukrywa licznik znaków jeśli by się pojawił
+              counterText: "",
             ),
-            maxLength: 50, // Limit długości opisu
+            maxLength: 50,
             style: const TextStyle(color: textColor, fontFamily: appFontFamily),
           ),
           const SizedBox(height: 12),
 
-          // --- POLE KWOTY (NAPRAWIONE) ---
           TextField(
             controller: _amountController,
-            // 1. Ograniczenie do 7 znaków (np. 9999.99) - zapobiega crashom algorytmu
-            maxLength: 7, 
+            maxLength: 7,
             decoration: const InputDecoration(
               hintText: 'Amount',
               prefixIcon:
                   Icon(Icons.attach_money_rounded, color: lightTextColor),
               suffixText: 'PLN',
-              counterText: "", // Ukrywamy licznik "0/7" dla czystego wyglądu
+              counterText: "",
             ),
             style: const TextStyle(color: textColor, fontFamily: appFontFamily),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            // 2. Formatowanie: tylko cyfry i kropka, max 2 miejsca po przecinku
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
             ],
@@ -671,8 +652,6 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   fontFamily: appFontFamily)),
           const SizedBox(height: 8),
 
-          // --- LISTA WSPÓŁLOKATORÓW (PRZEWIJANA WEWNĄTRZ) ---
-          // To naprawia uciekający przycisk. Lista ma max 150px wysokości.
           ConstrainedBox(
             constraints: const BoxConstraints(maxHeight: 150),
             child: SingleChildScrollView(
@@ -715,7 +694,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                               size: 20,
                             ),
                             const SizedBox(width: 12),
-                            Expanded( // Zapobiega overflow tekstu przy długich imionach
+                            Expanded(
                               child: Text(
                                 userName,
                                 style: TextStyle(
@@ -739,7 +718,6 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           ),
           const SizedBox(height: 20),
 
-          // --- PRZYCISK "SUBMIT" (TERAZ ZAWSZE WIDOCZNY) ---
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(

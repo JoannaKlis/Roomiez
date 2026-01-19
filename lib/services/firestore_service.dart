@@ -11,17 +11,13 @@ import '../utils/split_bill_logic.dart';
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // dynamiczne pobieranie id grupy zalogowanego użytkownika
+  /// Get group name by ID
   Future<String> getGroupName(String groupId) async {
     try {
-      // pobieranie dokumentu z kolekcji 'groups' o podanym ID
       final groupDoc = await _firestore.collection('groups').doc(groupId).get();
-
-      // sprawdzenie, czy dokument istnieje i zawiera pole 'name'
       if (groupDoc.exists && groupDoc.data()!.containsKey('name')) {
         return groupDoc.data()!['name'] as String;
       }
-
       return 'No group name';
     } catch (e) {
       print('Error fetching group name: $e');
@@ -29,20 +25,15 @@ class FirestoreService {
     }
   }
 
-  // pobieranie groupId aktualnie zalogowanego użytkownika
   Future<String> getCurrentUserGroupId() async {
     try {
       final userId = FirebaseAuth.instance.currentUser?.uid;
-
-      // pobieranie dokumentu użytkownika z kolekcji 'users'
       final userDoc = await _firestore.collection('users').doc(userId).get();
 
-      // sprawdzenie, czy dokument istnieje i zawiera pole 'groupId'
       if (userDoc.exists && userDoc.data()!.containsKey('groupId')) {
         return userDoc.data()!['groupId'] as String;
       }
 
-      // Jeśli użytkownik nie ma przypisanego groupId w dokumencie
       throw Exception(
           'User is not assigned to any group. Please create or join one.');
     } catch (e) {
@@ -51,7 +42,6 @@ class FirestoreService {
     }
   }
 
-  // pobieranie roli aktualnie zalogowanego użytkownika
   Future<String> getCurrentUserRole() async {
     try {
       final userId = FirebaseAuth.instance.currentUser?.uid;
@@ -71,54 +61,55 @@ class FirestoreService {
     }
   }
 
+  /// Create a new apartment group
   Future<String> createNewGroup(String Name) async {
     try {
-      final String userId = FirebaseAuth.instance.currentUser!.uid; //pobranie id obecnie zalogowanego użytkownika
-      var uuid = Uuid(); //funkcja generująca kod uuid przypisana do zmiennej uuid
-      String groupId; //deklaracja zmiennej przechowującej id przyszło utworzonej grupy
-      final snapshot = await _firestore.collection('groups').get(); //przechwycenie zawartości kolekcji 'groups'
-      List groups = snapshot.docs.map((doc) => doc.id).toList(); //zebranie wszystkich id grup z bazy do listy groups
+      final String userId = FirebaseAuth.instance.currentUser!.uid;
+      var uuid = Uuid();
+      String groupId;
+      final snapshot = await _firestore.collection('groups').get();
+      List groups = snapshot.docs.map((doc) => doc.id).toList();
       do {
-        groupId = uuid.v4().substring(0, 6); //generowanie kandydata na id nowej grupy złożonego z sześciu znaków poprzez przycięcie kodu uuid
-      } while (groups.contains(groupId)); //generowanie id nowej grupy tak długo jak ten kod NIE jest unikalny - 
-      //- Pętla przerwie się gdy wygenerowanego kodu nie będzie w bazie. To oznacza znalezienie unikalnego kodu który jest kodem nowej grupy 
-      await _firestore.collection('groups').doc(groupId).set({ //tworzenie grupy o unikatowym id i nazwie przekazanej do funkcji
+        groupId = uuid.v4().substring(0, 6);
+      } while (groups.contains(groupId));
+      
+      await _firestore.collection('groups').doc(groupId).set({
         'name': Name,
       });
-      // ! osoba która tworzy grupę otrzymuje rolę managera 
+      
       await _firestore.collection('users').doc(userId).update({
         'role': UserRole.apartmentManager,
         'groupId': groupId,
       });
-      return groupId; //funkcja zwraca id nowej grupy, ponieważ udało się utworzyć grupę i zmodyfikować odpowiednio dane użytkownika
+      return groupId;
     } catch (e) {
       debugPrint("createNewGroup error: $e");
-      return ""; //w razie wszelkich problemów przy tworzeniu grupy funkcja zwróci pusty String
+      return "";
     }
   }
 
+  /// Add current user to an existing group
   Future<bool> addUserToGroup(String groupId) async {
     try {
-      final String userId = FirebaseAuth.instance.currentUser!.uid; //pobranie id obecnie zalogowanego użytkownika
-      final snapshot = await _firestore.collection('groups').get(); //przechwycenie zawartości kolekcji 'groups'
-      List groups = snapshot.docs.map((doc) => doc.id).toList(); //zebranie wszystkich id grup z bazy do listy groups
-      if (!groups.contains(groupId)) { //jeśli nie ma w bazie grupy o podanym id, grupa nie istnieje i nie można dołączyć użytkownika
-        return false; //funkcja zwraca false jeśli nie uda się dołączyć użytkownika do grupy
+      final String userId = FirebaseAuth.instance.currentUser!.uid;
+      final snapshot = await _firestore.collection('groups').get();
+      List groups = snapshot.docs.map((doc) => doc.id).toList();
+      if (!groups.contains(groupId)) {
+        return false;
       }
-      //jeśli nie zwrócono false to oznacza, że grupa o podanym id istenieje i należy je przypisać do groupId użytkownika
-      //oraz nadać mu domyślną rolę (jako osoby która nie tworzy tylko dołącza do grupy) 
+      
       await _firestore.collection('users').doc(userId).update({ 
         'groupId': groupId,
-        'role': UserRole.member, // Użytkownik dostaje nową rolę 'member'
+        'role': UserRole.member,
       });
-      return true; //jeśli wszystko zwiazane z dołączeniem do grupy się powiodło funkcja zwraca true
+      return true;
     } catch (e) {
-      debugPrint("addUserToGroup error: $e"); //w razie wszelkich problemów przy dołączaniu do grupy funkcja zwróci false
+      debugPrint("addUserToGroup error: $e");
       return false;
     }
   }
 
-  // wyjście użytkownika z grupy - usuwa wszystkie powiązane wydatki i zadania
+  /// Current user exits group and recalculates balances
   Future<void> userExitsAGroup() async {
     try {
       final String userId = FirebaseAuth.instance.currentUser!.uid;
@@ -126,7 +117,6 @@ class FirestoreService {
       final batch = _firestore.batch();
       final currentUserRole = await getCurrentUserRole();
       
-      // Pobierz użytkowników grupy, żeby wiedzieć kto ZOSTAJE
       final usersInGroupSnapshot = await _firestore
           .collection('users')
           .where('groupId', isEqualTo: groupId)
@@ -134,18 +124,16 @@ class FirestoreService {
       
       final remainingUserIds = usersInGroupSnapshot.docs
           .map((d) => d.id)
-          .where((id) => id != userId) // Lista ID bez osoby wychodzącej
+          .where((id) => id != userId)
           .toList();
 
       debugPrint('User $userId exiting group $groupId');
 
-      // Inicjalizacja mapy nowych sald dla POZOSTAŁYCH członków
       Map<String, double> newBalances = {};
       for (var uid in remainingUserIds) {
         newBalances[uid] = 0.0;
       }
 
-      // Pobierz wszystkie wydatki grupy
       final expensesSnapshot = await _firestore.collection('expenses')
           .where('groupId', isEqualTo: groupId)
           .get();
@@ -155,17 +143,14 @@ class FirestoreService {
       
       for (var doc in expensesSnapshot.docs) {
         final data = doc.data();
-        final payerId = data['payerId'] as String; // Zakładam, że payerId zawsze jest
+        final payerId = data['payerId'] as String;
         double amount = (data['amount'] as num).toDouble();
         List<String> participantsIds = List<String>.from(data['participantsIds'] ?? []);
         
-        // Sprawdź czy użytkownik jest powiązany z tym wydatkiem
         bool isPayer = payerId == userId;
         bool isParticipant = participantsIds.contains(userId);
         
         if (!isPayer && !isParticipant) {
-          // Użytkownik nie ma związku z wydatkiem -> przeliczamy go normalnie dla reszty
-          // (dodajemy do sald bez zmian)
           if (remainingUserIds.contains(payerId)) {
              newBalances[payerId] = (newBalances[payerId] ?? 0.0) + amount;
           }
@@ -178,45 +163,33 @@ class FirestoreService {
           continue; 
         }
         
-        // Policz liczbę unikalnych osób w wydatku (payer + participants)
         Set<String> allUniquePeople = {payerId, ...participantsIds};
         
-        // REGUŁA 1: Jeśli wydatek był tylko między 2 osobami (i jedna z nich wychodzi) - usuń go całkowicie
-        // (Wtedy nie dodajemy nic do newBalances, bo wydatek znika)
         if (allUniquePeople.length <= 2) {
           batch.delete(doc.reference);
           deletedExpenses++;
           debugPrint('Deleted expense: ${doc.id} - only 2 people involved');
         }
-        // REGUŁA 2: Jeśli wydatek miał 3+ osoby
         else {
           if (isPayer) {
-            // Jeśli wychodzący płacił -> usuwamy wydatek (zgodnie z Twoją logiką w starym kodzie)
-            // Można tu ewentualnie zmienić logikę, ale trzymam się oryginału:
             batch.delete(doc.reference);
             deletedExpenses++;
             debugPrint('Deleted expense: ${doc.id} - payer left');
           } else {
-            // Jeśli wychodzący był UCZESTNIKIEM -> usuwamy go z listy i PRZELICZAMY resztę
-            participantsIds.remove(userId); // Usuwamy wychodzącego z listy w pamięci
+            participantsIds.remove(userId);
             
-            // Aktualizujemy dokument w bazie (bez wychodzącego)
             batch.update(doc.reference, {
               'participantsIds': participantsIds,
             });
             updatedExpenses++;
 
-            // !!! TU JEST KLUCZ DO SUKCESU !!!
-            // Obliczamy wpływ na saldo używając NOWEJ liczby uczestników
             if (participantsIds.isNotEmpty) {
-              double newSplitAmount = amount / participantsIds.length; // Np. 12 / 2 = 6 (zamiast 4)
+              double newSplitAmount = amount / participantsIds.length;
               
-              // Dodajemy płatnikowi (jeśli został w grupie) CAŁĄ kwotę
               if (remainingUserIds.contains(payerId)) {
                 newBalances[payerId] = (newBalances[payerId] ?? 0.0) + amount;
               }
               
-              // Odejmujemy NOWĄ stawkę od pozostałych uczestników
               for (var p in participantsIds) {
                 if (remainingUserIds.contains(p)) {
                   newBalances[p] = (newBalances[p] ?? 0.0) - newSplitAmount;
@@ -230,13 +203,11 @@ class FirestoreService {
 
       debugPrint('Recalculated balances: $newBalances');
       
-      // Zaktualizuj balansy w grupie
       batch.update(
         _firestore.collection('groups').doc(groupId),
         {'balances': newBalances},
       );
       
-      // --- Usuwanie tasków i settlements (bez zmian) ---
       final tasksSnapshot = await _firestore.collection('tasks')
           .where('groupId', isEqualTo: groupId)
           .where('assignedTo', isEqualTo: userId)
@@ -253,14 +224,11 @@ class FirestoreService {
         }
       }
 
-      // --- Obsługa usunięcia grupy lub zmiany admina (bez zmian) ---
-      if (usersInGroupSnapshot.docs.length == 1) { // Był tylko 1 user (ten co wychodzi)
+      if (usersInGroupSnapshot.docs.length == 1) {
         batch.delete(_firestore.collection('groups').doc(groupId));
-        // ... (reszta czyszczenia kolekcji opcjonalna)
       } 
       else if(currentUserRole == UserRole.apartmentManager){ 
         if(remainingUserIds.isNotEmpty){
-          // shuffle na liście ID
           remainingUserIds.shuffle(); 
           final newManagerId = remainingUserIds.first;
           batch.update(
@@ -270,7 +238,6 @@ class FirestoreService {
         }
       }
       
-      // Zresetuj dane usera wychodzącego
       batch.update(
         _firestore.collection('users').doc(userId),
         {
@@ -279,17 +246,15 @@ class FirestoreService {
         },
       );
 
-      // Wykonaj wszystko na raz
       await batch.commit();
       debugPrint('User $userId successfully exited group $groupId with CORRECT balances');
 
     } catch (e) {
       debugPrint("userExitsAGroup error: $e");
-      // Nie zwracamy nic, bo funkcja jest void, ale można dodać rethrow jeśli UI ma wiedzieć o błędzie
     }
   }
 
-  // Pobierz saldo użytkownika, niezakończone taski ORAZ wiszące rozliczenia do wyświetlenia w dialogu exit
+  /// Get summary data needed for exit dialog
   Future<Map<String, dynamic>> getExitSummary() async {
     try {
       final userId = FirebaseAuth.instance.currentUser?.uid;
@@ -299,30 +264,26 @@ class FirestoreService {
         return {
           'debtAmount': 0.0, 
           'incompleteTasks': 0, 
-          'pendingSettlements': 0, // Domyślnie 0
+          'pendingSettlements': 0,
           'isManager': false
         };
       }
 
-      // 1. Pobierz role użytkownika
       final currentRole = await getCurrentUserRole();
       final isManager = currentRole == UserRole.apartmentManager;
 
-      // 2. Pobierz saldo z grupy
       double debtAmount = 0.0;
       final groupDoc = await _firestore.collection('groups').doc(groupId).get();
       if (groupDoc.exists && groupDoc.data()!.containsKey('balances')) {
         final balances = groupDoc.data()!['balances'] as Map<String, dynamic>;
         if (balances.containsKey(userId)) {
           final userBalance = (balances[userId] as num).toDouble();
-          // Jeśli saldo jest ujemne = dług
           if (userBalance < 0) {
             debtAmount = userBalance.abs();
           }
         }
       }
 
-      // 3. Liczenie niezakończonych zadań
       final tasksSnapshot = await _firestore.collection('tasks')
           .where('groupId', isEqualTo: groupId)
           .where('assignedTo', isEqualTo: userId)
@@ -330,8 +291,6 @@ class FirestoreService {
 
       final incompleteTasks = tasksSnapshot.docs.length;
 
-      // 4. NOWOŚĆ: Liczenie wiszących rozliczeń (pending settlements)
-      // Sprawdzamy, czy użytkownik jest nadawcą LUB odbiorcą jakiejkolwiek niezatwierdzonej płatności
       final settlementsSnapshot = await _firestore.collection('settlements')
           .where('groupId', isEqualTo: groupId)
           .get();
@@ -342,7 +301,6 @@ class FirestoreService {
         final fromUserId = data['fromUserId'];
         final toUserId = data['toUserId'];
         
-        // Jeśli użytkownik jest stroną w transakcji (czeka na potwierdzenie lub musi potwierdzić)
         if (fromUserId == userId || toUserId == userId) {
           pendingSettlements++;
         }
@@ -353,7 +311,7 @@ class FirestoreService {
       return {
         'debtAmount': debtAmount,
         'incompleteTasks': incompleteTasks,
-        'pendingSettlements': pendingSettlements, // Zwracamy liczbę blokujących transakcji
+        'pendingSettlements': pendingSettlements,
         'isManager': isManager,
       };
     } catch (e) {
@@ -368,7 +326,7 @@ class FirestoreService {
   }
 
 
-  // pobieranie użytkowników z tej samej grupy
+  /// Get all apartment users in the group
   Future<List<Map<String, String>>> getCurrentApartmentUsers(
       String groupId) async {
     try {
@@ -391,12 +349,11 @@ class FirestoreService {
     }
   }
 
-  // dodawanie nowego zadania
+  /// Add task to group
   Future<void> addTask(Task task) async {
     await _firestore.collection('tasks').add(task.toMap());
   }
 
-  // pobieranie zadań dla domyślnej grupy
   Stream<List<Task>> getTasks() {
     return Stream.fromFuture(getCurrentUserGroupId()).asyncExpand((groupId) {
       return _firestore
@@ -412,7 +369,7 @@ class FirestoreService {
     });
   }
 
-  // aktualizacja statusu zadania
+  /// Update task completion status
   Future<void> updateTaskStatus(String taskId, bool isDone) async {
     final updateData = <String, dynamic>{
       'isDone': isDone,
@@ -424,14 +381,13 @@ class FirestoreService {
     await _firestore.collection('tasks').doc(taskId).update(updateData);
   }
 
+  /// Delete task from group
   Future<void> deleteTask(String taskId) async {
     await _firestore.collection('tasks').doc(taskId).delete();
   }
 
-  // dodawanie nowego wydatku
-  // 1. Zmodyfikowane dodawanie (Transakcja)
+  /// Add expense to group
   Future<void> addExpense(ExpenseHistoryItem expense) async {
-    // Validate expense amount limit
     if (expense.amount > 100000) {
       throw Exception('Expense amount cannot exceed 100,000 PLN.');
     }
@@ -440,62 +396,46 @@ class FirestoreService {
     final groupRef = _firestore.collection('groups').doc(expense.groupId);
 
     await _firestore.runTransaction((transaction) async {
-      // A. Pobierz aktualne salda grupy
       final groupSnapshot = await transaction.get(groupRef);
       if (!groupSnapshot.exists) throw Exception("Group not found");
 
       Map<String, double> balances = {};
       if (groupSnapshot.data() != null && groupSnapshot.data()!.containsKey('balances')) {
-        // Konwersja z Firebase Map<String, dynamic> na Map<String, double>
         Map<String, dynamic> raw = groupSnapshot.data()!['balances'];
         raw.forEach((k, v) => balances[k] = (v as num).toDouble());
       }
 
-      // B. Oblicz wpływ nowego wydatku
       double splitAmount = expense.amount / expense.participantsIds.length;
       
-      // Płatnik zyskuje (jest na plusie)
       balances[expense.payerId] = (balances[expense.payerId] ?? 0.0) + expense.amount;
       
-      // Uczestnicy tracą (są na minusie)
       for (var uid in expense.participantsIds) {
         balances[uid] = (balances[uid] ?? 0.0) - splitAmount;
       }
 
-      // C. Zapisz wszystko w bazie
-      // Nowy wydatek (upewnij się, że pole isSettled jest zapisane)
       transaction.set(expenseRef, expense.toMap());
-      // Zaktualizowane salda w grupie
       transaction.update(groupRef, {'balances': balances});
     });
   }
 
-  // 2. Potrzebne do pobierania salda na żywo
   Stream<DocumentSnapshot> getGroupStream(String groupId) {
     return _firestore.collection('groups').doc(groupId).snapshots();
   }
 
-  // 3. MAGICZNA METODA NAPRAWCZA (Uruchom raz, by policzyć stare wydatki)
   Future<void> migrateOldExpensesToBalances() async {
     final groupId = await getCurrentUserGroupId();
     final expensesSnapshot = await _firestore.collection('expenses')
         .where('groupId', isEqualTo: groupId).get();
     
-    // Pobieramy wszystkich użytkowników (żeby wiedzieć kogo liczyć)
     final usersSnapshot = await _firestore.collection('users')
         .where('groupId', isEqualTo: groupId).get();
     List<String> allUserIds = usersSnapshot.docs.map((d) => d.id).toList();
 
-    // Liczymy "po staremu"
     Map<String, double> balances = {};
     for (var uid in allUserIds) balances[uid] = 0.0;
 
     for (var doc in expensesSnapshot.docs) {
       final data = doc.data();
-      // Pomijamy 'repayment' (zwroty), bo one tylko zerują saldo, 
-      // a w tym modelu salda zerują się same przy logice wpłat.
-      // *UWAGA*: Jeśli Twoja logika "Repayment" to po prostu Expense, 
-      // to musisz to uwzględnić. Zakładam standardowe wydatki.
       
       double amount = (data['amount'] as num).toDouble();
       String payerId = data['payerId'];
@@ -508,14 +448,12 @@ class FirestoreService {
       }
     }
 
-    // Zapisujemy wynik do grupy
     await _firestore.collection('groups').doc(groupId).update({
       'balances': balances
     });
     debugPrint("MIGRATION SUCCESS: Balances updated!");
   }
 
-  // Ensure every expense document has the 'isSettled' field (default false)
   Future<void> ensureExpensesHaveIsSettled() async {
     final groupId = await getCurrentUserGroupId();
     final expensesSnapshot = await _firestore
@@ -536,11 +474,10 @@ class FirestoreService {
     }
   }
 
-  // Delete all expenses for the current group and reset balances
+  /// Delete all expenses from group
   Future<void> deleteAllExpenses() async {
     final groupId = await getCurrentUserGroupId();
     
-    // Delete all expenses
     final expensesSnapshot = await _firestore
         .collection('expenses')
         .where('groupId', isEqualTo: groupId)
@@ -552,7 +489,6 @@ class FirestoreService {
     }
     await batch.commit();
 
-    // Reset balances in group to zero
     final groupRef = _firestore.collection('groups').doc(groupId);
     final groupSnapshot = await groupRef.get();
     if (groupSnapshot.exists) {
@@ -567,8 +503,6 @@ class FirestoreService {
     debugPrint("ALL EXPENSES DELETED AND BALANCES RESET!");
   }
 
-  // pobieranie wydatków dla domyślnej grupy
-  // Filtrowanie po isSettled robimy po stronie klienta, aby uniknąć konieczności tworzenia indeksów w Firestore
   Stream<List<ExpenseHistoryItem>> getExpenses({bool? isSettled}) {
     return Stream.fromFuture(getCurrentUserGroupId()).asyncExpand((groupId) {
       var query = _firestore
@@ -581,7 +515,6 @@ class FirestoreService {
             .map((doc) => ExpenseHistoryItem.fromMap(doc.data(), doc.id))
             .toList();
 
-        // Filtrowanie po stronie klienta
         if (isSettled != null) {
           items = items.where((item) => item.isSettled == isSettled).toList();
         }
@@ -591,7 +524,6 @@ class FirestoreService {
     });
   }
 
-  // !!! NOWE: POBIERANIE Z PAGINACJĄ (PARTIAMI) !!!
   Future<List<DocumentSnapshot>> getExpensesPaged({
     required int limit,
     DocumentSnapshot? startAfter,
@@ -604,12 +536,10 @@ class FirestoreService {
         .where('groupId', isEqualTo: groupId)
         .orderBy('date', descending: true);
 
-    // Filtrowanie isSettled
     if (isSettled != null) {
        query = query.where('isSettled', isEqualTo: isSettled);
     }
     
-    // Paginacja
     if (startAfter != null) {
       query = query.startAfterDocument(startAfter);
     }
@@ -620,7 +550,6 @@ class FirestoreService {
     return snapshot.docs;
   }
 
-  // POBIERANIE DANYCH PROFILU UŻYTKOWNIKA
   Future<Map<String, dynamic>?> getCurrentUserProfile() async {
     try {
       final String userId = FirebaseAuth.instance.currentUser!.uid;
@@ -635,7 +564,6 @@ class FirestoreService {
     }
   }
 
-  // AKTUALIZACJA DANYCH PROFILU UŻYTKOWNIKA
   Future<String?> updateUserProfile(String firstName, String lastName) async {
     try {
       final String userId = FirebaseAuth.instance.currentUser!.uid;
@@ -643,9 +571,8 @@ class FirestoreService {
         'firstName': firstName,
         'lastName': lastName,
       });
-      return null; // Oznacza sukces
+      return null;
     } catch (e) {
-      // Obsługa błędów, np. brak uprawnień
       if (e is FirebaseException) {
         return e.message;
       }
@@ -653,10 +580,7 @@ class FirestoreService {
     }
   }
 
-  // ==============================
-  // ANNOUNCEMENTS
-  // ==============================
-
+  /// Add announcement to group
   Future<void> addAnnouncement(Announcement announcement) async {
     await _firestore.collection('announcements').add(announcement.toMap());
   }
@@ -680,7 +604,7 @@ class FirestoreService {
   // SHOPPING LIST (NOWOŚĆ)
   // ==============================
 
-  // 1. Dodaj produkt
+  /// Add item to shopping list
   Future<void> addShoppingItem(String name, bool isPriority) async {
     final groupId = await getCurrentUserGroupId();
     final userId = FirebaseAuth.instance.currentUser?.uid;
@@ -695,28 +619,26 @@ class FirestoreService {
     debugPrint('addShoppingItem: added ${docRef.id} to group $groupId');
   }
 
-  // 2. Pobierz listę zakupów
   Stream<List<Map<String, dynamic>>> getShoppingList() {
     return Stream.fromFuture(getCurrentUserGroupId()).asyncExpand((groupId) {
       return _firestore
           .collection('shopping_items')
           .where('groupId', isEqualTo: groupId)
-          .orderBy('isBought', descending: false) // Nie kupione na górze
-          .orderBy('createdAt', descending: true) // Najnowsze na górze
+          .orderBy('isBought', descending: false)
+          .orderBy('createdAt', descending: true)
           .snapshots()
           .map((snapshot) {
         debugPrint('getShoppingList: snapshot for group $groupId contains ${snapshot.docs.length} docs');
         return snapshot.docs.map((doc) {
           final data = doc.data() as Map<String, dynamic>;
           final map = Map<String, dynamic>.from(data);
-          map['id'] = doc.id; // Dodajemy ID dokumentu do mapy
+          map['id'] = doc.id;
           return map;
         }).toList();
       });
     });
   }
 
-  // 3. Zmień status (Kupione/Niekupione)
   Future<void> toggleShoppingItemStatus(String itemId, bool currentStatus) async {
     final updateData = <String, dynamic>{
       'isBought': !currentStatus,
@@ -725,7 +647,6 @@ class FirestoreService {
     await _firestore.collection('shopping_items').doc(itemId).update(updateData);
   }
 
-  // 4. Usuń produkt
   Future<void> deleteShoppingItem(String itemId) async {
     await _firestore.collection('shopping_items').doc(itemId).delete();
   }
@@ -734,21 +655,17 @@ class FirestoreService {
   // ADMIN FEATURES
   // ==============================
 
-  // pobieranie wszytstkich grup (do admin dashboard)
   Stream<List<Map<String, dynamic>>> getAllGroupsStream() {
     return _firestore.collection('groups').snapshots().map((snapshot) {
       return snapshot.docs.map((doc) {
         final data = doc.data();
-        data['id'] = doc.id; // ID grupy
-        // liczenie członków grupy
+        data['id'] = doc.id;
         return data;
       }).toList();
     });
   }
 
-  // pobieranie listy członków grupy (admin)
   Stream<List<Map<String, dynamic>>> getGroupMembersStream(String groupId) {
-    // groupId = ID
     return _firestore
         .collection('users')
         .where('groupId', isEqualTo: groupId)
@@ -902,8 +819,6 @@ class FirestoreService {
       rethrow;
     }
   }
-
-  // --- WKLEJ NA SAMYM DOLE KLASY FirestoreService ---
 
   // 1. Pobierz 2 ostatnie wydatki (do Home Screen)
   Stream<List<ExpenseHistoryItem>> getRecentExpensesStream(String groupId) {

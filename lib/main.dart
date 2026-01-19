@@ -1,15 +1,11 @@
 import 'package:flutter/material.dart';
-import 'constants.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
-import 'screens/welcome_screen.dart';
-
-// testing screens
-import 'screens/expenses_screen.dart';
-import 'screens/tasks_screen.dart';
-import 'screens/profile_edit_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'constants.dart';
+import 'firebase_options.dart';
 import 'services/firestore_service.dart';
+import 'screens/welcome_screen.dart';
+import 'screens/profile_edit_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,14 +13,11 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Run migration to ensure existing expense docs have 'isSettled' field
   try {
-    // Only run if user is logged in
     if (FirebaseAuth.instance.currentUser != null) {
       await FirestoreService().ensureExpensesHaveIsSettled();
     }
   } catch (e) {
-    // ignore errors at startup migration
     debugPrint('Startup migration error: $e');
   }
 
@@ -39,15 +32,11 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'ROOMIES',
       debugShowCheckedModeBanner: false,
-      
-      // --- NOWY STYL (CLEAN UI) ---
       theme: ThemeData(
-        useMaterial3: true, // Włączamy nowsze standardy UI
+        useMaterial3: true,
         fontFamily: appFontFamily,
         primaryColor: primaryColor,
         scaffoldBackgroundColor: backgroundColor,
-
-        // Nowoczesna paleta kolorów
         colorScheme: ColorScheme.fromSeed(
           seedColor: primaryColor,
           primary: primaryColor,
@@ -55,18 +44,14 @@ class MyApp extends StatelessWidget {
           onSurface: textColor,
           background: backgroundColor,
         ),
-        
-        // GLOBALNY STYL TEKSTU
         textTheme: ThemeData.light().textTheme.apply(
           fontFamily: appFontFamily,
           bodyColor: textColor,
           displayColor: textColor,
         ),
-        
-        // Styl paska aplikacji (Czysty, płaski, biały)
         appBarTheme: const AppBarTheme(
           backgroundColor: backgroundColor,
-          surfaceTintColor: Colors.transparent, // Zapobiega zmianie koloru przy scrollu
+          surfaceTintColor: Colors.transparent,
           elevation: 0,
           scrolledUnderElevation: 0,
           centerTitle: true,
@@ -79,13 +64,11 @@ class MyApp extends StatelessWidget {
             letterSpacing: -0.5,
           ),
         ),
-        
-        // Styl przycisków głównych (Płaskie, lekko zaokrąglone)
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: primaryColor,
             foregroundColor: Colors.white,
-            elevation: 0, // Zero cienia -> Flat Design
+            elevation: 0,
             padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12.0),
@@ -97,14 +80,12 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ),
-        
-        // Styl przycisków pobocznych (Delikatna szara ramka)
         outlinedButtonTheme: OutlinedButtonThemeData(
           style: OutlinedButton.styleFrom(
             backgroundColor: Colors.transparent,
             foregroundColor: textColor,
             elevation: 0,
-            side: const BorderSide(color: borderColor, width: 1), // borderColor z constants.dart
+            side: const BorderSide(color: borderColor, width: 1),
             padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12.0),
@@ -116,15 +97,11 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ),
-        
-        // Styl pól wprowadzania tekstu (Szare tło, brak ramki domyślnie)
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: surfaceColor, // Jasnoszary z constants.dart
+          fillColor: surfaceColor,
           contentPadding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 20.0),
           hintStyle: const TextStyle(color: lightTextColor, fontFamily: appFontFamily),
-          
-          // Stan spoczynku - bez ramki
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12.0),
             borderSide: BorderSide.none,
@@ -133,41 +110,29 @@ class MyApp extends StatelessWidget {
             borderRadius: BorderRadius.circular(12.0),
             borderSide: BorderSide.none,
           ),
-          
-          // Stan aktywny - ramka w kolorze głównym
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12.0),
             borderSide: const BorderSide(color: primaryColor, width: 1.5),
           ),
-          
-          // Stan błędu
           errorBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12.0),
             borderSide: const BorderSide(color: Colors.redAccent, width: 1),
           ),
         ),
-        
-        // Styl Checkboxów
         checkboxTheme: CheckboxThemeData(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
           fillColor: MaterialStateProperty.resolveWith((states) {
             if (states.contains(MaterialState.selected)) {
               return primaryColor;
             }
-            return null; // Domyślny kolor
+            return null;
           }),
         ),
       ),
-
       routes: {
-        ProfileEditScreen.id: (context) => const ProfileEditScreen(), 
+        ProfileEditScreen.id: (context) => const ProfileEditScreen(),
       },
-      
       home: const WelcomeScreen(),
-      // zakomentowane ekrany do testowania - ZOSTAWIŁEM NIETKNIĘTE
-      // home: const TasksScreen(),
-      // home: const ExpensesScreen(), 
-      // home: const ProfileEditScreen(),
     );
   }
 }

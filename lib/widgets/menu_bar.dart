@@ -59,6 +59,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
     }
   }
 
+  /// Copy group ID to clipboard
   void _copyToClipboard(BuildContext context) {
     Clipboard.setData(ClipboardData(text: widget.groupId));
     ScaffoldMessenger.of(context).showSnackBar(
@@ -71,6 +72,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
     );
   }
 
+  /// Sign out user and navigate to login
   void _signOut(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
     if (context.mounted) {
@@ -81,6 +83,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
     }
   }
 
+/// Show dialog to confirm exiting group
 void _showExitGroupDialog(BuildContext context) {
     bool isProcessing = false;
     final parentContext = context;
@@ -94,7 +97,6 @@ void _showExitGroupDialog(BuildContext context) {
             return FutureBuilder<Map<String, dynamic>>(
               future: _firestoreService.getExitSummary(),
               builder: (ctx, snapshot) {
-                // Loader podczas pobierania danych
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return AlertDialog(
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -107,17 +109,15 @@ void _showExitGroupDialog(BuildContext context) {
 
                 final summaryData = snapshot.data ?? 
                     {'debtAmount': 0.0, 'incompleteTasks': 0, 'pendingSettlements': 0, 'isManager': false};
-                
                 final debtAmount = (summaryData['debtAmount'] as num?)?.toDouble() ?? 0.0;
                 final incompleteTasks = summaryData['incompleteTasks'] as int? ?? 0;
-                final pendingSettlements = summaryData['pendingSettlements'] as int? ?? 0; // NOWE
+                final pendingSettlements = summaryData['pendingSettlements'] as int? ?? 0;
                 final isManager = summaryData['isManager'] as bool? ?? false;
-                
                 final hasDebts = debtAmount > 0.01;
                 final hasTasks = incompleteTasks > 0;
-                final hasPendingSettlements = pendingSettlements > 0; // NOWE
+                final hasPendingSettlements = pendingSettlements > 0;
+                final canExit = !hasPendingSettlements;
 
-                // --- BLOKADA: Jeśli są wiszące rozliczenia ---
                 if (hasPendingSettlements) {
                   return AlertDialog(
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -157,7 +157,6 @@ void _showExitGroupDialog(BuildContext context) {
                   );
                 }
 
-                // --- STANDARDOWE OSTRZEŻENIA (Jeśli brak blokady) ---
                 return AlertDialog(
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -177,7 +176,6 @@ void _showExitGroupDialog(BuildContext context) {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Ostrzeżenie o długach
                         if (hasDebts) ...[
                           Container(
                             padding: const EdgeInsets.all(16),
@@ -225,7 +223,6 @@ void _showExitGroupDialog(BuildContext context) {
                           const SizedBox(height: 16),
                         ],
 
-                        // Ostrzeżenie dla Managera
                         if (isManager) ...[
                           Container(
                             padding: const EdgeInsets.all(12),
@@ -250,7 +247,6 @@ void _showExitGroupDialog(BuildContext context) {
                           const SizedBox(height: 16),
                         ],
 
-                        // Ostrzeżenie o zadaniach
                         if (hasTasks) ...[
                           Container(
                             padding: const EdgeInsets.all(12),
@@ -317,6 +313,7 @@ void _showExitGroupDialog(BuildContext context) {
     );
   }
 
+/// Show dialog to confirm resetting all expenses
 void _showResetExpensesDialog(BuildContext context) {
   bool isProcessing = false;
   final parentContext = context;

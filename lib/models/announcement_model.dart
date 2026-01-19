@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// Represents an announcement posted in a group
 class Announcement {
   final String id;
   final String title;
@@ -9,7 +10,7 @@ class Announcement {
   final String createdByName;
   final DateTime createdAt;
   final List<String> imageUrls;
-  final List<String> readBy; // Nowe pole
+  final List<String> readBy;
 
   Announcement({
     required this.id,
@@ -20,9 +21,10 @@ class Announcement {
     required this.createdByName,
     required this.createdAt,
     this.imageUrls = const [],
-    this.readBy = const [], // Domyślnie pusta lista
+    this.readBy = const [],
   });
 
+  /// Create from Firestore document
   factory Announcement.fromMap(Map<String, dynamic> data, String documentId) {
     return Announcement(
       id: documentId,
@@ -41,6 +43,7 @@ class Announcement {
     );
   }
 
+  /// Convert to Firestore format
   Map<String, dynamic> toMap() {
     return {
       'title': title,

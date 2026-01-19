@@ -1,15 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-// Prosty model reprezentujący pozycję na liście historii wydatków
+/// Represents an expense entry in the system
 class ExpenseHistoryItem {
   final String id;
   final String description;
-  final String payerId; // Kto zapłacił (ID użytkownika)
-  final double amount; // Np. +40.0, -2.25
+  final String payerId;
+  final double amount;
   final DateTime date;
-  final List<String> participantsIds; // ID uczestników (również płatnika)
-  final String groupId;  // ID grupy, do której należy wydatek
-  final bool isSettled; // czy wydatek jest rozliczony (archiwalny)
+  final List<String> participantsIds;
+  final String groupId;
+  final bool isSettled;
 
   ExpenseHistoryItem({
     required this.id,
@@ -22,14 +22,13 @@ class ExpenseHistoryItem {
     this.isSettled = false,
   });
 
-  // metoda do tworzenia obiektu z firestore 
+  /// Create from Firestore document
   factory ExpenseHistoryItem.fromMap(Map<String, dynamic> data, String documentId) {
     return ExpenseHistoryItem(
       id: documentId,
       description: data['description'] as String,
       payerId: data['payerId'] as String,
       amount: (data['amount'] as num).toDouble(),
-      // konwersja firestore Timestamp na DateTime
       date: (data['date'] as Timestamp).toDate(),
       participantsIds: List<String>.from(data['participantsIds'] as List),
       groupId: data['groupId'] as String,
@@ -37,7 +36,7 @@ class ExpenseHistoryItem {
     );
   }
 
-  // metoda do mapowania obiektu na firestore
+  /// Convert to Firestore format
   Map<String, dynamic> toMap() {
     return {
       'description': description,

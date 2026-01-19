@@ -1,3 +1,4 @@
+/// User roles in the application
 class UserRole {
   static const String user = 'user';
   static const String apartmentManager = 'apartment_manager';

@@ -55,8 +55,7 @@ class _MembersScreenState extends State<MembersScreen> {
         return {
           'id': doc.id,
           'name': '${data['firstName'] ?? ''} ${data['lastName'] ?? ''}'.trim(),
-          'role': data['role'] ??
-              'Member', // Pobieramy rolę (np. 'manager' lub 'Member')
+          'role': data['role'],
         };
       }).toList();
 

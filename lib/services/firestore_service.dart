@@ -108,7 +108,7 @@ class FirestoreService {
       //oraz nadać mu domyślną rolę (jako osoby która nie tworzy tylko dołącza do grupy) 
       await _firestore.collection('users').doc(userId).update({ 
         'groupId': groupId,
-        'role': 'Member', // Domyślna rola
+        'role': UserRole.member, // Użytkownik dostaje nową rolę 'member'
       });
       return true; //jeśli wszystko zwiazane z dołączeniem do grupy się powiodło funkcja zwraca true
     } catch (e) {

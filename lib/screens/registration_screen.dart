@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import '../constants.dart';
 import 'login_screen.dart';
 import 'package:roomies/services/auth_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({Key? key}) : super(key: key);
@@ -20,10 +22,18 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       TextEditingController();
   final AuthService _authService = AuthService();
   bool _isRegistering = false;
+  bool _acceptedPrivacyPolicy = false;
 
   // sprawdzenie czy hasło i potwierdzenie hasła są takie same
   void _handleRegistration() async {
     if (_isRegistering) return;
+    
+    // Walidacja akceptacji Privacy Policy
+    if (!_acceptedPrivacyPolicy) {
+      AuthService.showErrorSnackBar(context, 'Please accept the Terms of Privacy Policy to continue.');
+      return;
+    }
+    
     setState(() => _isRegistering = true);
 
     String password = _passwordController.text;
@@ -73,6 +83,20 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       // błąd rejestracji
       if (mounted) {
         AuthService.showErrorSnackBar(context, errorMessage);
+      }
+    }
+  }
+
+  // Funkcja do otworzenia linku Privacy Policy
+  void _openPrivacyPolicy() async {
+    const String url = 'https://docs.google.com/document/d/1FSz3qdZZWYgxsZ6H9PwFyjhSn5bUT5JWXF0oqCarrJc/edit?usp=sharing';
+    try {
+      if (await canLaunchUrl(Uri.parse(url))) {
+        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      if (mounted) {
+        AuthService.showErrorSnackBar(context, 'Could not open Privacy Policy');
       }
     }
   }
@@ -367,6 +391,53 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     ),
 
                     const SizedBox(height: 30),
+
+                    // --- CHECKBOX REGULAMINU ---
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Checkbox(
+                          value: _acceptedPrivacyPolicy,
+                          onChanged: (bool? value) {
+                            setState(() {
+                              _acceptedPrivacyPolicy = value ?? false;
+                            });
+                          },
+                          activeColor: primaryColor,
+                          side: const BorderSide(color: primaryColor),
+                        ),
+                        Expanded(
+                          child: RichText(
+                            text: TextSpan(
+                              children: [
+                                const TextSpan(
+                                  text: 'I accept the ',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: textColor,
+                                    fontFamily: appFontFamily,
+                                  ),
+                                ),
+                                TextSpan(
+                                  text: 'Terms of Privacy Policy',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: primaryColor,
+                                    fontWeight: FontWeight.bold,
+                                    fontFamily: appFontFamily,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                  recognizer: TapGestureRecognizer()
+                                    ..onTap = _openPrivacyPolicy,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
 
                     // Regulamin
                     const Text(

@@ -407,31 +407,31 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                           side: const BorderSide(color: primaryColor),
                         ),
                         Expanded(
-                          child: RichText(
-                            text: TextSpan(
-                              children: [
-                                const TextSpan(
-                                  text: 'I accept the ',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: textColor,
-                                    fontFamily: appFontFamily,
-                                  ),
+                          child: Wrap(
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              const Text(
+                                'I accept the ',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: textColor,
+                                  fontFamily: appFontFamily,
                                 ),
-                                TextSpan(
-                                  text: 'Terms of Privacy Policy',
-                                  style: const TextStyle(
+                              ),
+                              GestureDetector(
+                                onTap: _openPrivacyPolicy,
+                                child: const Text(
+                                  'Terms of Privacy Policy',
+                                  style: TextStyle(
                                     fontSize: 14,
                                     color: primaryColor,
                                     fontWeight: FontWeight.bold,
                                     fontFamily: appFontFamily,
                                     decoration: TextDecoration.underline,
                                   ),
-                                  recognizer: TapGestureRecognizer()
-                                    ..onTap = _openPrivacyPolicy,
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
